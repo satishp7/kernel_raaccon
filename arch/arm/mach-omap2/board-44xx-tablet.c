@@ -715,6 +715,7 @@ static void __init omap_tablet_init(void)
 				ARRAY_SIZE(tablet_spi_board_info));
 	}
 
+#ifndef CONFIG_MACH_OMAP_RACCOON
 	if (cpu_is_omap446x()) {
 		/* Vsel0 = gpio, vsel1 = gnd */
 		status = omap_tps6236x_board_setup(true, TPS62361_GPIO, -1,
@@ -722,6 +723,7 @@ static void __init omap_tablet_init(void)
 		if (status)
 			pr_err("TPS62361 initialization failed: %d\n", status);
 	}
+#endif
 
 	omap_enable_smartreflex_on_init();
 	if (enable_suspend_off)
