@@ -385,8 +385,10 @@ static struct i2c_driver tmp102_driver = {
 
 static int __init tmp102_init(void)
 {
+#ifndef CONFIG_MACH_OMAP_RACCOON
 	if (!cpu_is_omap447x())
 		return 0;
+#endif
 
 	return i2c_add_driver(&tmp102_driver);
 }
