@@ -308,6 +308,11 @@ config MACH_TI8168EVM
 	depends on SOC_OMAPTI816X
 	default y
 
+config MACH_OMAP_RACCOON_SA
+    bool "Jorjin AP Module RACCOON board support for Stand-along"
+    default n
+    depends on MACH_OMAP_RACCOON
+
 config MACH_OMAP_RACCOON
     bool "Jorjin AP Module RACCOON board support"
     default y

@@ -36,6 +36,7 @@
 #define OMAP4_TSL2771_PWR_GPIO		188
 #define OMAP4_MPU3050GYRO_GPIO		2
 
+#ifndef CONFIG_MACH_OMAP_RACCOON_SA
 /* BMA180 Accelerometer Begin */
 static struct bma180accel_platform_data bma180accel_platform_data = {
 	.ctrl_reg0	= 0x11,
@@ -59,6 +60,7 @@ static void blaze_tablet_bma180accl_init(void)
 	gpio_direction_input(OMAP4_BMA180ACCL_GPIO);
 }
 /* BMA180 Accelerometer End */
+#endif
 
 /* TSL2771 ALS/Prox Begin */
 static void omap_tsl2771_power(int state)
@@ -105,6 +107,7 @@ struct tsl2771_platform_data tsl2771_data = {
 };
 /* TSL2771 ALS/Prox End */
 
+#ifndef CONFIG_MACH_OMAP_RACCOON_SA
 /* MPU3050 Gyro Begin */
 static void blaze_tablet_mpu3050_init(void)
 {
@@ -125,6 +128,7 @@ static struct mpu3050gyro_platform_data mpu3050_platform_data = {
 		MPU3050_INT_CFG_MPU_RDY_EN | MPU3050_INT_CFG_RAW_RDY_EN),
 };
 /* MPU3050 Gyro End */
+#endif
 
 static struct i2c_board_info __initdata blaze_tablet_i2c_bus3_sensor_info[] = {
 	{
@@ -139,6 +143,7 @@ static struct i2c_board_info __initdata blaze_tablet_i2c_bus4_sensor_info[] = {
 	{
 		I2C_BOARD_INFO("hmc5843", 0x1e),
 	},
+#ifndef CONFIG_MACH_OMAP_RACCOON_SA
 	{
 		I2C_BOARD_INFO("bma180_accel", 0x40),
 		.platform_data = &bma180accel_platform_data,
@@ -147,6 +152,7 @@ static struct i2c_board_info __initdata blaze_tablet_i2c_bus4_sensor_info[] = {
 		I2C_BOARD_INFO("mpu3050_gyro", 0x68),
 		.platform_data = &mpu3050_platform_data,
 	},
+#endif
 	{
 		I2C_BOARD_INFO(TSL2771_NAME, 0x39),
 		.platform_data = &tsl2771_data,
@@ -157,8 +163,10 @@ static struct i2c_board_info __initdata blaze_tablet_i2c_bus4_sensor_info[] = {
 int __init tablet_sensor_init(void)
 {
 	blaze_tablet_tsl2771_init();
+#ifndef CONFIG_MACH_OMAP_RACCOON_SA
 	blaze_tablet_mpu3050_init();
 	blaze_tablet_bma180accl_init();
+#endif
 
 	i2c_register_board_info(3, blaze_tablet_i2c_bus3_sensor_info,
 		ARRAY_SIZE(blaze_tablet_i2c_bus3_sensor_info));
