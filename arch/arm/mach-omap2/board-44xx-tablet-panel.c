@@ -267,7 +267,11 @@ static struct omap_dss_device lcd_tc35876x_sharp_lq101k1lyxx = {
 	.panel = {
 		.timings = {
 			.x_res		= 1280,
+#ifdef CONFIG_MACH_OMAP_RACCOON_SA
+			.y_res		= 720,
+#else
 			.y_res		= 800,
+#endif
 			.pixel_clock	= 65183,
 			.hfp		= 10,
 			.hsw		= 20,
