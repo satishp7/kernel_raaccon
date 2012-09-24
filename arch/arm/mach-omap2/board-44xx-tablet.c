@@ -761,7 +761,13 @@ static void __init omap_tablet_reserve(void)
 }
 
 
+#ifdef CONFIG_MACH_OMAP_RACCOON_SA
+MACHINE_START(OMAP_BLAZE, "Jorjin AP Module OMAP4 Raccoon board for Stand-Alone")
+#elif CONFIG_MACH_OMAP_RACCOON
+MACHINE_START(OMAP_BLAZE, "Jorjin AP Module OMAP4 Raccoon board")
+#else
 MACHINE_START(OMAP_BLAZE, "OMAP4 blaze board")
+#endif
 	/* Maintainer: Dan Murphy - Texas Instruments Inc */
 	.boot_params	= 0x80000100,
 	.reserve	= omap_tablet_reserve,
