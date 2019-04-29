@@ -219,8 +219,8 @@ static struct regulator_consumer_supply cam2_supply[] = {
 
 static struct regulator_init_data vaux3 = {
 	.constraints = {
-		.min_uV			= 1000000,
-		.max_uV			= 3000000,
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
 		.apply_uV		= true,
 		.valid_modes_mask	= REGULATOR_MODE_NORMAL
 					| REGULATOR_MODE_STANDBY,
@@ -234,6 +234,31 @@ static struct regulator_init_data vaux3 = {
 	},
 	.num_consumer_supplies = 1,
 	.consumer_supplies = cam2_supply,
+};
+
+static struct regulator_consumer_supply ov5640_cam2_supply[] = {
+	{
+		.supply = "ov5640_cam2pwr",
+	},
+};
+
+static struct regulator_init_data ov5640_vaux3 = {
+	.constraints = {
+		.min_uV			= 1000000,
+		.max_uV			= 1800000,
+		.apply_uV		= true,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask	 = REGULATOR_CHANGE_VOLTAGE
+					| REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+		.state_mem = {
+			.disabled       = true,
+		},
+		.initial_state          = PM_SUSPEND_MEM,
+	},
+	.num_consumer_supplies = 1,
+	.consumer_supplies = ov5640_cam2_supply,
 };
 
 static struct regulator_init_data clk32kg = {

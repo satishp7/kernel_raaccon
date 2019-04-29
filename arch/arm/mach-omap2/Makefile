@@ -286,7 +286,9 @@ obj-$(CONFIG_MACH_OMAP_BLAZE)		+= board-44xx-tablet.o \
 					   board-44xx-tablet-sensors.o \
 					   board-44xx-tablet-panel.o \
 					   board-44xx-tablet-buttons.o \
+					   board-44xx-camera.o \
 					   omap4_apps_brd_id.o
+
 obj-$(CONFIG_TOUCHSCREEN_CYPRESS_TTSP)  += board-touch-cyttsp4_core.o
 obj-$(CONFIG_MACH_OMAP4_PANDA)		+= board-omap4panda.o \
 					   hsmmc.o \

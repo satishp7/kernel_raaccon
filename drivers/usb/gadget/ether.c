@@ -228,8 +228,8 @@ static struct usb_gadget_strings *dev_strings[] = {
 	NULL,
 };
 
-static u8 hostaddr[ETH_ALEN];
-
+static u8 hostaddr[ETH_ALEN]={0xFE,0xDE,0x8E,0xFA,0xFB,0x9F};
+static u32  vendorID;
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -246,7 +246,7 @@ static int __init rndis_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	return rndis_bind_config(c, hostaddr);
+	return rndis_bind_config(c, hostaddr, vendorID, manufacturer);
 }
 
 static struct usb_configuration rndis_config_driver = {

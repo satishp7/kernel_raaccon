@@ -3426,9 +3426,54 @@ static struct omap_hwmod_ocp_if *omap44xx_iss_masters[] = {
 
 static struct omap_hwmod_addr_space omap44xx_iss_addrs[] = {
 	{
-		.pa_start	= 0x52000000,
+		.pa_start	= 0x52000000, //ISS_TOP
 		.pa_end		= 0x520000ff,
 		.flags		= ADDR_TYPE_RT
+	},
+	{
+		.pa_start       = 0x52001000, //CSI2_A_REGS1
+		.pa_end         = 0x5200116f,
+		.flags          = ADDR_TYPE_RT
+	},
+	{
+		.pa_start       = 0x52001170,  //ISS_CAMERARX_CORE1 
+		.pa_end         = 0x5200118f,
+		.flags          = ADDR_TYPE_RT
+	},
+	{
+		.pa_start       = 0x52001400, //CSI2_B_REGS1
+		.pa_end         = 0x5200156f,
+		.flags          = ADDR_TYPE_RT
+	},
+	{
+		.pa_start       = 0x52001570, //ISS_CAMERARX_CORE2
+		.pa_end         = 0x5200158f,
+		.flags          = ADDR_TYPE_RT
+	},
+	{
+		.pa_start       = 0x52002000,
+		.pa_end         = 0x520021FF,
+		.flags          = ADDR_TYPE_RT
+	},
+	{
+		.pa_start       = 0x52010000,
+		.pa_end         = 0x5201009F,
+		.flags          = ADDR_TYPE_RT
+	},
+	{
+		.pa_start       = 0x52010400,
+		.pa_end         = 0x520107FF,
+		.flags          = ADDR_TYPE_RT
+	},
+	{
+		.pa_start       = 0x52011000,
+		.pa_end         = 0x520111FF,
+		.flags          = ADDR_TYPE_RT
+	},
+	{
+		.pa_start       = 0x52011200,
+		.pa_end         = 0x5201127F,
+		.flags          = ADDR_TYPE_RT
 	},
 };
 

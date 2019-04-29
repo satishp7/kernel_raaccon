@@ -15,5 +15,6 @@
 struct isp_platform_data;
 
 int omap3_init_camera(struct isp_platform_data *pdata);
+int omap4_init_camera(struct iss_platform_data *pdata, struct omap_board_data *bdata);
 
 #endif

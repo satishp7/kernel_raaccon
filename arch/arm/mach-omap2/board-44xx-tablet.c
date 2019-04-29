@@ -49,49 +49,17 @@
 #include "pm.h"
 #include "board-44xx-tablet.h"
 #include "omap_ram_console.h"
+#include "board-44xx-camera.h"
 
 #define WILINK_UART_DEV_NAME	"/dev/ttyO1"
-#define ETH_KS8851_IRQ			34
-#define ETH_KS8851_POWER_ON		48
-#define ETH_KS8851_QUART		138
 
 #define GPIO_WIFI_PMENA		54
 #define GPIO_WIFI_IRQ		53
 
 #define TPS62361_GPIO   7
 
-#define OMAP4_MDM_PWR_EN_GPIO       157
-#define GPIO_USB3320_PHY_RESETB	    171
-#define GPIO_WK30		    30
+#define GPIO_USB3320_PHY_RESETB	    134
 
-static struct spi_board_info tablet_spi_board_info[] __initdata = {
-	{
-		.modalias               = "ks8851",
-		.bus_num                = 1,
-		.chip_select            = 0,
-		.max_speed_hz           = 24000000,
-		.irq                    = ETH_KS8851_IRQ,
-	},
-};
-
-static struct gpio tablet_eth_gpios[] __initdata = {
-	{ ETH_KS8851_POWER_ON,	GPIOF_OUT_INIT_HIGH,	"eth_power"	},
-	{ ETH_KS8851_QUART,	GPIOF_OUT_INIT_HIGH,	"quart"		},
-	{ ETH_KS8851_IRQ,	GPIOF_IN,		"eth_irq"	},
-};
-
-static int __init omap_ethernet_init(void)
-{
-	int status;
-
-	/* Request of GPIO lines */
-	status = gpio_request_array(tablet_eth_gpios,
-				    ARRAY_SIZE(tablet_eth_gpios));
-	if (status)
-		pr_err("Cannot request ETH GPIOs\n");
-
-	return status;
-}
 
 /* TODO: handle suspend/resume here.
  * Upon every suspend, make sure the wilink chip is
@@ -522,12 +490,12 @@ static struct omap_board_mux board_mux[] __initdata = {
  *	TOTAL -		8 Gb
  *
  * Same devices installed on EMIF1 and EMIF2
- */
+
 static __initdata struct emif_device_details emif_devices = {
 	.cs0_device = &lpddr2_elpida_2G_S4_dev,
 	.cs1_device = &lpddr2_elpida_2G_S4_dev
 };
-
+ */
 /*
  * LPDDR2 Configuration Data for 4470 SOMs:
  * The memory organization is as below :
@@ -591,17 +559,6 @@ static void __init omap4_ehci_ohci_init(void)
 {
 	int ret = 0;
 
-	omap_mux_init_signal("fref_clk3_req.gpio_wk30", \
-		OMAP_PIN_OUTPUT | \
-		OMAP_PIN_OFF_NONE | OMAP_PULL_ENA);
-
-	/* Enable 5V,1A USB power on external HS-USB ports */
-	if (gpio_is_valid(GPIO_WK30)) {
-		gpio_request(GPIO_WK30, "USB POWER GPIO");
-		gpio_direction_output(GPIO_WK30, 1);
-		gpio_set_value(GPIO_WK30, 0);
-	}
-
 	/* configure the EHCI PHY USB3320C RESET GPIO */
 	omap_mux_init_gpio(GPIO_USB3320_PHY_RESETB, OMAP_PIN_OUTPUT |
 		OMAP_PIN_OFF_NONE);
@@ -613,16 +570,6 @@ static void __init omap4_ehci_ohci_init(void)
 		return;
 	}
 	gpio_direction_output(GPIO_USB3320_PHY_RESETB, 1);
-
-	omap_mux_init_signal("usbb2_ulpitll_clk.gpio_157", \
-		OMAP_PIN_OUTPUT | \
-		OMAP_PIN_OFF_NONE);
-
-	/* Power on the ULPI PHY */
-	if (gpio_is_valid(OMAP4_MDM_PWR_EN_GPIO)) {
-		gpio_request(OMAP4_MDM_PWR_EN_GPIO, "USBB1 PHY VMDM_3V3");
-		gpio_direction_output(OMAP4_MDM_PWR_EN_GPIO, 1);
-	}
 
 	usbhs_init(&usbhs_bdata);
 
@@ -676,11 +623,10 @@ static void __init omap_tablet_init(void)
 		package = OMAP_PACKAGE_CBL;
 	omap4_mux_init(board_mux, NULL, package);
 
-	if (cpu_is_omap447x())
-		omap_emif_setup_device_details(&emif_devices_4470,
-					       &emif_devices_4470);
-	else
-		omap_emif_setup_device_details(&emif_devices, &emif_devices);
+	//if (cpu_is_omap447x())
+		omap_emif_setup_device_details(&emif_devices_4470, &emif_devices_4470);
+	//else
+		//omap_emif_setup_device_details(&emif_devices, &emif_devices);
 
 	omap_board_config = tablet_config;
 	omap_board_config_size = ARRAY_SIZE(tablet_config);
@@ -688,6 +634,7 @@ static void __init omap_tablet_init(void)
 	omap4_create_board_props();
 	omap4_audio_conf();
 	omap4_i2c_init();
+	omap4_camera_input_init();
 	tablet_touch_init();
 	tablet_camera_mux_init();
 	omap_dmm_init();
@@ -706,14 +653,6 @@ static void __init omap_tablet_init(void)
 	omap4_ehci_ohci_init();
 	usb_musb_init(&musb_board_data);
 
-	status = omap_ethernet_init();
-	if (status) {
-		pr_err("Ethernet initialization failed: %d\n", status);
-	} else {
-		tablet_spi_board_info[0].irq = gpio_to_irq(ETH_KS8851_IRQ);
-		spi_register_board_info(tablet_spi_board_info,
-				ARRAY_SIZE(tablet_spi_board_info));
-	}
 
 #ifndef CONFIG_MACH_OMAP_RACCOON
 	if (cpu_is_omap446x()) {

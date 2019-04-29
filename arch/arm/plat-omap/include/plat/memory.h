@@ -93,9 +93,13 @@
 #define CONFIG_FB_OMAP_CONSISTENT_DMA_SIZE 2
 #endif
 
+#define CONFIG_FB_OMAP_CONSISTENT_DMA_SIZE 12
 #define CONSISTENT_DMA_SIZE \
 	(((CONFIG_FB_OMAP_CONSISTENT_DMA_SIZE + 1) & ~1) * 1024 * 1024)
+#else
 
+#define CONSISTENT_DMA_SIZE \
+	(((12 + 1) & ~1) * 1024 * 1024)
 #endif
 
 #endif

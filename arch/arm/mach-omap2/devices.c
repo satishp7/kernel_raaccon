@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
+#include <media/omap4iss.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
@@ -41,6 +42,7 @@
 #include <plat/mcpdm.h>
 
 #include <sound/omap-abe-dsp.h>
+#include <linux/dma-mapping.h>
 
 #include "mux.h"
 #include "control.h"
@@ -229,6 +231,74 @@ static inline void omap_init_camera(void)
 	if (cpu_is_omap24xx())
 		platform_device_register(&omap2cam_device);
 #endif
+}
+
+int omap4_init_camera(struct iss_platform_data *pdata, struct omap_board_data *bdata)
+{
+	struct platform_device *pdev;
+	struct omap_hwmod *oh;
+	struct omap_device *od;
+	struct iss_platform_data *omap4iss_pdata;
+	const char *oh_name = "iss";
+	const char *name = "omap4iss";
+
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh) {
+		pr_err("Could not look up %s\n", oh_name);
+		return -ENODEV;
+	}
+
+	omap4iss_pdata = pdata;
+
+	od = omap_device_build(name, -1, oh, omap4iss_pdata,
+			sizeof(struct iss_platform_data), NULL, 0, 0);
+
+	pdev = &od->pdev;
+	if (IS_ERR(pdev)) {
+		WARN(1, "Can't build omap_device for %s:%s.\n",
+				name, oh->name);
+		return PTR_ERR(pdev);
+	}
+
+	oh->mux = omap_hwmod_mux_init(bdata->pads, bdata->pads_cnt);
+
+#ifdef CONFIG_CMA
+	/* Create private 32MiB contiguous memory area for omap4iss device */
+	dma_declare_contiguous(&pdev->dev, 32*SZ_1M, 0, 0);
+#else
+#if 0
+	dma_addr_t paddr;
+	void *vaddr;
+	//unsigned long size = (640*480); Failed
+	unsigned long size = 1024, i;
+	for(i = 1; i < 300; i++)
+	{
+		size = (1024 * i);
+		vaddr = dma_alloc_coherent(&pdev->dev, size, &paddr, GFP_KERNEL);
+		if (!vaddr) {
+			printk("%s() dma_alloc_coherent of size %ld failed\n", __func__, size);
+		}
+		else
+		{
+			printk("%s() dma_alloc_coherent of size %ld pass\n", __func__, size);
+			dma_free_coherent(&pdev->dev, size, vaddr, paddr);
+		}
+
+	}
+//#endif
+		size = 640 * 480 *4;
+		vaddr = dma_alloc_coherent(&pdev->dev, size, &paddr, GFP_KERNEL);
+		if (!vaddr) {
+			printk("%s() dma_alloc_coherent of size %ld failed\n", __func__, size);
+		} else {
+			printk("%s() dma_alloc_coherent of size %ld pass\n", __func__, size);
+			dma_free_coherent(&pdev->dev, size, vaddr, paddr);
+		}
+
+#endif
+#endif
+
+	return 0;
 }
 
 struct omap_device_pm_latency omap_keyboard_latency[] = {
