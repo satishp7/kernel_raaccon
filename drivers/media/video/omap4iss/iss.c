@@ -1002,10 +1002,6 @@ static int iss_probe(struct platform_device *pdev)
 	struct iss_platform_data *pdata = pdev->dev.platform_data;
 	struct iss_device *iss;
 	int i, ret;
-	dma_addr_t paddr;
-//	void *vaddr;
-	//unsigned long size = (640*480); Failed
-//	unsigned long size = 1024;
 
 	if (pdata == NULL)
 		return -EINVAL;
