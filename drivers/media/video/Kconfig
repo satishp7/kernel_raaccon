@@ -473,6 +473,12 @@ config VIDEO_OV5640
         help
           This is a ov5640 camera driver
 
+config VIDEO_S5K5BAFX
+    tristate "S5K5BAFX supporting camera driver"
+    depends on I2C && VIDEO_V4L2
+    ---help---
+      This driver supports S5K5BAFX SoC camera module
+
 config VIDEO_MT9V011
 	tristate "Micron mt9v011 sensor support"
 	depends on I2C && VIDEO_V4L2

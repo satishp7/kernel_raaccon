@@ -1175,6 +1175,7 @@ static void __init omap_4430sdp_init(void)
 	blaze_pmic_mux_init();
 	blaze_set_osc_timings();
 	omap4_i2c_init();
+	usb_musb_init(&musb_board_data);
 	blaze_sensor_init();
 	blaze_touch_init();
 	omap4_register_ion();
@@ -1192,7 +1193,6 @@ static void __init omap_4430sdp_init(void)
 
 	omap4_ehci_ohci_init();
 
-	usb_musb_init(&musb_board_data);
 
 	status = omap_ethernet_init();
 	if (status) {
