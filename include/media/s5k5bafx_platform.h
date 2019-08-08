@@ -40,4 +40,5 @@ struct s5k5bafx_platform_data {
 	bool init_streamoff;
 
 	u8 dbg_level;
+    int (*s_power)(struct v4l2_subdev *subdev, int on);
 };
