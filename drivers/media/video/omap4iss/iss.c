@@ -923,8 +923,10 @@ static int iss_register_entities(struct iss_device *iss)
 	for (subdevs = pdata->subdevs; subdevs && subdevs->subdevs; ++subdevs) {
 		struct v4l2_subdev *sensor;
 		struct media_entity *input;
+        struct media_entity *tsource;
 		unsigned int flags;
 		unsigned int pad;
+		unsigned int src_pad;
 
 		sensor = iss_register_subdev_group(iss, subdevs->subdevs);
 		if (sensor == NULL)
@@ -958,7 +960,16 @@ static int iss_register_entities(struct iss_device *iss)
 			goto done;
 		}
 
-		ret = media_entity_create_link(&sensor->entity, 0, input, pad,
+        tsource = &sensor->entity;
+        //24/7: satish
+        /**
+         * if source entity has 2 pads, then pad1 will be the source and pad0
+         * will be the sink. So correct below calling
+         * ret = media_entity_create_link(&sensor->entity, 0, input, pad,
+		 *			       flags);
+         */
+        src_pad = (tsource->num_pads > 1 ? 1 : 0);
+		ret = media_entity_create_link(tsource, src_pad, input, pad,
 					       flags);
 		if (ret < 0)
 			goto done;
