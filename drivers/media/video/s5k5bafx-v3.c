@@ -29,7 +29,12 @@
 //#include <mach/cpufreq.h>
 #include <linux/cpufreq.h>
 #endif
+
+#define S_FUNC_ENTER    printk("\n HACK: %s:%d, ENTER\n", __func__, __LINE__);
+#define S_FUNC_END      printk("\n HACK: %s:%d, END\n", __func__, __LINE__);
+
 static struct class *camera_class;
+
 
 static const struct s5k5bafx_fps s5k5bafx_framerates[] = {
 	{ I_FPS_0,	FRAME_RATE_AUTO },
@@ -140,196 +145,6 @@ static inline int s5k5bafx_read(struct i2c_client *client,
 	return 0;
 }
 
-/*
- * s5k6aafx sensor i2c write routine
- * <start>--<Device address><2Byte Subaddr><2Byte Value>--<stop>
- */
-#ifdef CONFIG_LOAD_FILE
-static int loadFile(void)
-{
-	struct file *fp = NULL;
-	struct test *nextBuf = NULL;
-
-	u8 *nBuf = NULL;
-	size_t file_size = 0, max_size = 0, testBuf_size = 0;
-	ssize_t nread = 0;
-	s32 check = 0, starCheck = 0;
-	s32 tmp_large_file = 0;
-	s32 i = 0;
-	int ret = 0;
-	loff_t pos;
-
-	mm_segment_t fs = get_fs();
-	set_fs(get_ds());
-
-	cam_info("%s: E\n", __func__);
-
-	BUG_ON(testBuf);
-
-	fp = filp_open(TUNING_FILE_PATH, O_RDONLY, 0);
-	if (IS_ERR(fp)) {
-		cam_err("%s: ERROR, file open error\n", __func__);
-		return PTR_ERR(fp);
-	}
-
-	file_size = (size_t) fp->f_path.dentry->d_inode->i_size;
-	max_size = file_size;
-
-	cam_dbg("file_size = %d\n", file_size);
-
-	nBuf = kmalloc(file_size, GFP_ATOMIC);
-	if (nBuf == NULL) {
-		cam_dbg("Fail to 1st get memory\n");
-		nBuf = vmalloc(file_size);
-		if (nBuf == NULL) {
-			cam_err("%s: ERROR, nBuf Out of Memory\n", __func__);
-			ret = -ENOMEM;
-			goto error_out;
-		}
-		tmp_large_file = 1;
-	}
-
-	testBuf_size = sizeof(struct test) * file_size;
-	if (tmp_large_file) {
-		testBuf = (struct test *)vmalloc(testBuf_size);
-		large_file = 1;
-	} else {
-		testBuf = kmalloc(testBuf_size, GFP_ATOMIC);
-		if (testBuf == NULL) {
-			cam_dbg("Fail to get mem(%d bytes)\n", testBuf_size);
-			testBuf = (struct test *)vmalloc(testBuf_size);
-			large_file = 1;
-		}
-	}
-	if (testBuf == NULL) {
-		cam_err("%s: ERROR, Out of Memory\n", __func__);
-		ret = -ENOMEM;
-		goto error_out;
-	}
-
-	pos = 0;
-	memset(nBuf, 0, file_size);
-	memset(testBuf, 0, file_size * sizeof(struct test));
-
-	nread = vfs_read(fp, (char __user *)nBuf, file_size, &pos);
-	if (nread != file_size) {
-		cam_err("%s: ERROR, failed to read file ret = %d\n",
-						__func__, nread);
-		ret = -1;
-		goto error_out;
-	}
-
-	set_fs(fs);
-
-	i = max_size;
-
-	printk("i = %d\n", i);
-
-	while (i) {
-		testBuf[max_size - i].data = *nBuf;
-		if (i != 1) {
-			testBuf[max_size - i].nextBuf = &testBuf[max_size - i + 1];
-		} else {
-			testBuf[max_size - i].nextBuf = NULL;
-			break;
-		}
-		i--;
-		nBuf++;
-	}
-
-	i = max_size;
-	nextBuf = &testBuf[0];
-
-#if 1
-	while (i - 1) {
-		if (!check && !starCheck) {
-			if (testBuf[max_size - i].data == '/') {
-				if (testBuf[max_size-i].nextBuf != NULL) {
-					if (testBuf[max_size-i].nextBuf->data
-								== '/') {
-						check = 1;/* when find '//' */
-						i--;
-					} else if (testBuf[max_size-i].nextBuf->data == '*') {
-						starCheck = 1;/* when find '/ *' */
-						i--;
-					}
-				} else
-					break;
-			}
-			if (!check && !starCheck) {
-				/* ignore '\t' */
-				if (testBuf[max_size - i].data != '\t') {
-					nextBuf->nextBuf = &testBuf[max_size-i];
-					nextBuf = &testBuf[max_size - i];
-				}
-			}
-		} else if (check && !starCheck) {
-			if (testBuf[max_size - i].data == '/') {
-				if(testBuf[max_size-i].nextBuf != NULL) {
-					if (testBuf[max_size-i].nextBuf->data == '*') {
-						starCheck = 1; /* when find '/ *' */
-						check = 0;
-						i--;
-					}
-				} else
-					break;
-			}
-
-			 /* when find '\n' */
-			if (testBuf[max_size - i].data == '\n' && check) {
-				check = 0;
-				nextBuf->nextBuf = &testBuf[max_size - i];
-				nextBuf = &testBuf[max_size - i];
-			}
-
-		} else if (!check && starCheck) {
-			if (testBuf[max_size - i].data == '*') {
-				if (testBuf[max_size-i].nextBuf != NULL) {
-					if (testBuf[max_size-i].nextBuf->data == '/') {
-						starCheck = 0; /* when find '* /' */
-						i--;
-					}
-				} else
-					break;
-			}
-		}
-
-		i--;
-
-		if (i < 2) {
-			nextBuf = NULL;
-			break;
-		}
-
-		if (testBuf[max_size - i].nextBuf == NULL) {
-			nextBuf = NULL;
-			break;
-		}
-	}
-#endif
-
-#if 0 // for print
-	printk("i = %d\n", i);
-	nextBuf = &testBuf[0];
-	while (1) {
-		//printk("sdfdsf\n");
-		if (nextBuf->nextBuf == NULL)
-			break;
-		printk("%c", nextBuf->data);
-		nextBuf = nextBuf->nextBuf;
-	}
-#endif
-
-error_out:
-
-	if (nBuf)
-		tmp_large_file ? vfree(nBuf) : kfree(nBuf);
-	if (fp)
-		filp_close(fp, current->files);
-	return ret;
-}
-#endif
-
 static inline int s5k5bafx_write(struct i2c_client *client,
 		u32 packet)
 {
@@ -357,118 +172,6 @@ static inline int s5k5bafx_write(struct i2c_client *client,
 	return 0;
 }
 
-#ifdef CONFIG_LOAD_FILE
-/* #define DEBUG_LOAD_FILE */
-static int s5k5bafx_write_regs_from_sd(struct v4l2_subdev *sd, u8 s_name[])
-{
-
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct test *tempData = NULL;
-
-	int ret = -EAGAIN;
-	u32 temp;
-	u32 delay = 0;
-	u8 data[11];
-	s32 searched = 0;
-	size_t size = strlen(s_name);
-	s32 i;
-#ifdef DEBUG_LOAD_FILE
-	u8 regs_name[128] = {0,};
-
-	BUG_ON(size > sizeof(regs_name));
-#endif
-
-	cam_dbg("E size = %d, string = %s\n", size, s_name);
-	tempData = &testBuf[0];
-	while (!searched) {
-		searched = 1;
-		for (i = 0; i < size; i++) {
-			if (tempData->data != s_name[i]) {
-				searched = 0;
-				break;
-			}
-#ifdef DEBUG_LOAD_FILE
-			regs_name[i] = tempData->data;
-#endif
-
-			tempData = tempData->nextBuf;
-		}
-#ifdef DEBUG_LOAD_FILE
-		if (i > 9) {
-			regs_name[i] = '\0';
-			cam_dbg("Searching: regs_name = %s\n", regs_name);
-		}
-#endif
-
-		tempData = tempData->nextBuf;
-	}
-	/* structure is get..*/
-#ifdef DEBUG_LOAD_FILE
-	regs_name[i] = '\0';
-	cam_dbg("Searched regs_name = %s\n\n", regs_name);
-#endif
-
-	while (1) {
-		if (tempData->data == '{')
-			break;
-		else
-			tempData = tempData->nextBuf;
-	}
-
-	while (1) {
-		searched = 0;
-		while (1) {
-			if (tempData->data == 'x') {
-				/* get 10 strings.*/
-				data[0] = '0';
-				for (i = 1; i < 11; i++) {
-					data[i] = tempData->data;
-					tempData = tempData->nextBuf;
-				}
-				/*cam_dbg("%s\n", data);*/
-				temp = simple_strtoul(data, NULL, 16);
-				break;
-			} else if (tempData->data == '}') {
-				searched = 1;
-				break;
-			} else
-				tempData = tempData->nextBuf;
-
-			if (tempData->nextBuf == NULL)
-				return -1;
-		}
-
-		if (searched)
-			break;
-
-		if ((temp & S5K5BAFX_DELAY) == S5K5BAFX_DELAY) {
-			delay = temp & 0xFFFF;
-			msleep_debug(sd, delay);
-			continue;
-		}
-
-		ret = s5k5bafx_write(client, temp);
-
-		/* In error circumstances */
-		/* Give second shot */
-		if (unlikely(ret)) {
-			dev_info(&client->dev,
-					"s5k5bafx i2c retry one more time\n");
-			ret = s5k5bafx_write(client, temp);
-
-			/* Give it one more shot */
-			if (unlikely(ret)) {
-				dev_info(&client->dev,
-						"s5k5bafx i2c retry twice\n");
-				ret = s5k5bafx_write(client, temp);
-			}
-		}
-	}
-
-	return ret;
-}
-#endif
-
 /*
 * Read a register.
 */
@@ -495,11 +198,15 @@ static int s5k5bafx_write_regs(struct v4l2_subdev *sd,
 		const u32 *packet, u32 num)
 {
 	struct s5k5bafx_state *state = to_state(sd);
-
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = -EAGAIN,  retry_count = 5;
 	u32 temp = 0;
 	u16 delay = 0;
+
+    if (client == NULL || packet == NULL) {
+        printk("\n HACK: v4l2 subdev does not have client data\n");
+        return -EINVAL;
+    }
 #ifdef S5K5BAFX_BURST_MODE
 	u16 addr, value;
 	int len = 0;
@@ -518,7 +225,7 @@ static int s5k5bafx_write_regs(struct v4l2_subdev *sd,
 			"can't search i2c client adapter\n");
 
 	while (num--) {
-		temp = *packet++;
+        temp = *packet++;
 
 		if ((temp & S5K5BAFX_DELAY) == S5K5BAFX_DELAY) {
 			delay = temp & 0xFFFF;
@@ -558,7 +265,7 @@ static int s5k5bafx_write_regs(struct v4l2_subdev *sd,
 
 		continue;
 #else
-		*(u32 *)buf = cpu_to_be32(temp);
+        *(u32 *)buf = cpu_to_be32(temp);
 #endif
 
 #ifdef S5K5BAFX_BURST_MODE
@@ -585,7 +292,7 @@ s5k5bafx_burst_write:
 			if (!(num%200))
 				usleep_range(3, 5)
 		}
-#endif		
+#endif
 	}
 
 	CHECK_ERR_COND_MSG(ret < 0, -EIO,
@@ -610,17 +317,11 @@ static int s5k5bafx_set_from_table(struct v4l2_subdev *sd,
 	table += index;
 	CHECK_ERR_COND_MSG(!table->reg, -EFAULT, "reg = NULL\n");
 
-#ifdef CONFIG_LOAD_FILE
-	cam_dbg("%s: \"%s\", reg_name=%s\n", __func__, setting_name,
-						table->name);
-	return s5k5bafx_write_regs_from_sd(sd, table->name);
-#else
 	err = s5k5bafx_write_regs(sd, table->reg, table->array_size);
 	CHECK_ERR_COND_MSG(err < 0, -EIO, "fail to write regs(%s), err=%d\n",
 			setting_name, err);
 
 	return 0;
-#endif
 }
 
 static inline int s5k5bafx_get_iso(struct v4l2_subdev *sd, u16 *iso)
@@ -711,7 +412,7 @@ static int s5k5bafx_debug_sensor_status(struct v4l2_subdev *sd)
 	/* Read REG_TC_GP_EnableCaptureChanged. */
 	err = s5k5bafx_read_reg(sd, 0x7000, 0x01F6, &val);
 	CHECK_ERR(err);
-	
+
 	switch(val) {
 	case 0:
 		cam_info("In normal mode(0)\n");
@@ -799,7 +500,8 @@ static int s5k5bafx_set_sensor_mode(struct v4l2_subdev *sd,
 					s32 val)
 {
 	struct s5k5bafx_state *state = to_state(sd);
-
+    S_FUNC_ENTER
+    printk("\n%s:val:%d", __func__, val);
 	switch (val) {
 	case SENSOR_MOVIE:
 		if (state->vt_mode) {
@@ -827,6 +529,8 @@ static int s5k5bafx_init_regs(struct v4l2_subdev *sd)
 	u16 read_value = 0;
 	int err = -ENODEV;
 
+    S_FUNC_ENTER
+
 	/* enter read mode */
 	err = s5k5bafx_read_reg(sd, 0xD000, 0x1006, &read_value);
 	if (unlikely(err < 0))
@@ -849,10 +553,12 @@ static int s5k5bafx_init_regs(struct v4l2_subdev *sd)
 	CHECK_ERR_COND(err < 0, -ENODEV);
 
 	state->regs = &reg_datas;
+    printk("HACK: %s: %d capture widht:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
+    printk("HACK: %s: %d preview widht:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
+    S_FUNC_END
 
 	return 0;
 }
-
 static int s5k5bafx_g_mbus_fmt(struct v4l2_subdev *sd,
 			struct v4l2_mbus_framefmt *fmt)
 {
@@ -866,7 +572,7 @@ static int s5k5bafx_enum_framesizes(struct v4l2_subdev *sd, \
 	struct s5k5bafx_state *state = to_state(sd);
 
 	cam_trace("E\n");
-
+    S_FUNC_ENTER
 	/*
 	 * Return the actual output settings programmed to the camera
 	 */
@@ -914,19 +620,28 @@ static int s5k5bafx_try_mbus_fmt(struct v4l2_subdev *sd,
 }
 
 static int s5k5bafx_s_mbus_fmt(struct v4l2_subdev *sd,
-				struct v4l2_mbus_framefmt *fmt)
+				struct v4l2_mbus_framefmt *mf)
 {
 	struct s5k5bafx_state *state = to_state(sd);
 	u32 *width = NULL, *height = NULL;
 
 	cam_trace("E\n");
+    S_FUNC_ENTER
+	//satish
+    printk("HACK: code:%d, colorspace:%d\n", mf->code, mf->colorspace);
+    printk("HACK: width:%d, height:%d\n", mf->width, mf->height);
+    printk("HACK: field:%d, \n", mf->field);
+
+    /* NOTE: This is always true for now, revisit later. */
+    state->pixel_rate->cur.val64 = 42000000;
+
 	/*
 	 * Just copying the requested format as of now.
 	 * We need to check here what are the formats the camera support, and
 	 * set the most appropriate one according to the request from FIMC
 	 */
-	v4l2_fill_pix_format(&state->req_fmt, fmt);
-	state->req_fmt.priv = fmt->field;
+	v4l2_fill_pix_format(&state->req_fmt, mf);
+	state->req_fmt.priv = mf->field;
 
 	switch (state->req_fmt.priv) {
 	case V4L2_PIX_FMT_MODE_PREVIEW:
@@ -951,6 +666,8 @@ static int s5k5bafx_s_mbus_fmt(struct v4l2_subdev *sd,
 			__func__, state->req_fmt.width, state->req_fmt.height);
 	}
 
+    // satish: set format
+    //
 	return 0;
 }
 
@@ -1074,7 +791,7 @@ static int s5k5bafx_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms
 {
 	int err = 0;
 	struct s5k5bafx_state *state = to_state(sd);
-
+    S_FUNC_ENTER
 	state->req_fps = parms->parm.capture.timeperframe.denominator /
 			parms->parm.capture.timeperframe.numerator;
 
@@ -1135,6 +852,7 @@ static int s5k5bafx_wait_steamoff(struct v4l2_subdev *sd)
 	s32 elapsed_msec = 0;
 
 	cam_trace("E\n");
+    printk("HACK:%s:%d \n", __func__, __LINE__);
 
 	if (unlikely(!(state->pdata->is_mipi & state->need_wait_streamoff)))
 		return 0;
@@ -1161,6 +879,7 @@ static int s5k5bafx_control_stream(struct v4l2_subdev *sd, u32 cmd)
 	struct s5k5bafx_state *state = to_state(sd);
 	int err = -EINVAL;
 
+    printk("HACK:%s:%d \n", __func__, __LINE__);
 	if (unlikely(!state->pdata->is_mipi || (cmd != STREAM_STOP)))
 		return 0;
 
@@ -1178,13 +897,60 @@ static int s5k5bafx_control_stream(struct v4l2_subdev *sd, u32 cmd)
 	return 0;
 }
 
+// satish: Add pad operations
+
+static int s5k5bafx_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+			  struct v4l2_subdev_format *fmt)
+{
+	struct v4l2_mbus_framefmt *mf = &fmt->format;
+    struct s5k5bafx_state *state = to_state(sd);
+    S_FUNC_ENTER
+    printk("HACK: fmt which:%d, pad:%d\n", fmt->which, fmt->pad);
+	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
+		mf = v4l2_subdev_get_try_format(fh, fmt->pad);
+		fmt->format = *mf;
+        printk("HACK: %s:%dsubdev try\n", __func__, __LINE__);
+		return 0;
+	}
+    // fill default value as of now
+    if (fh == NULL) {
+        printk("HACK: really fh shuold not be null\n");
+    }
+	mf = &fmt->format;
+    if (mf == NULL) {
+        printk("HACK: really mf shuold not be null\n");
+    }
+    printk("HACK: code:%d, colorspace:%d\n", mf->code, mf->colorspace);
+
+    mf->code = state->req_fmt.pixelformat; //s5k5baf_formats[1].code;
+	mf->colorspace = V4L2_COLORSPACE_JPEG, //hardcoding color space as of now
+	mf->field = V4L2_FIELD_NONE;
+	mf->width = state->preview_frmsizes.width; //s5k5baf_cis_rect.width;
+	mf->height = state->preview_frmsizes.height; //s5k5baf_cis_rect.height;
+    printk("HACK: code:%d, colorspace:%d\n", mf->code, mf->colorspace);
+    printk("HACK: width:%d, height:%d\n", mf->width, mf->height);
+    return 0;
+}
+static int s5k5bafx_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
+			  struct v4l2_subdev_format *fmt)
+{
+	struct v4l2_mbus_framefmt *mf = &fmt->format;
+    S_FUNC_ENTER
+
+    return s5k5bafx_s_mbus_fmt(sd, mf);
+}
+//
+
 static int s5k5bafx_init(struct v4l2_subdev *sd, u32 val)
 {
 	struct s5k5bafx_state *state = to_state(sd);
 	int err = -EINVAL;
 
+    printk("HACK:%s:%d \n", __func__, __LINE__);
 	cam_trace("E\n");
 
+    printk("HACK: %s: %d capture widht:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
+    printk("HACK: %s: %d preview widht:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
 	err = s5k5bafx_init_regs(sd);
 	CHECK_ERR_MSG(err, "failed to indentify sensor chip\n");
 
@@ -1224,6 +990,8 @@ static int s5k5bafx_init(struct v4l2_subdev *sd, u32 val)
 		err = s5k5bafx_set_frame_rate(sd, state->req_fps);
 		CHECK_ERR(err);
 	}
+    printk("HACK: %s: %d capture widht:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
+    printk("HACK: %s: %d preview widht:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
 
 	return 0;
 }
@@ -1240,10 +1008,8 @@ static int s5k5bafx_s_config(struct v4l2_subdev *sd,
 		int irq, void *platform_data)
 {
 	struct s5k5bafx_state *state = to_state(sd);
-#ifdef CONFIG_LOAD_FILE
-	int err = 0;
-#endif
 
+    printk("HACK:%s:%d \n", __func__, __LINE__);
 	if (!platform_data) {
 		cam_err("%s: ERROR, no platform data\n", __func__);
 		return -ENODEV;
@@ -1269,7 +1035,7 @@ static int s5k5bafx_s_config(struct v4l2_subdev *sd,
 		state->default_frmsizes.width = state->pdata->default_width;
 		state->default_frmsizes.height = state->pdata->default_height;
 	}
-	
+
 	state->preview_frmsizes.width = state->default_frmsizes.width;
 	state->preview_frmsizes.height = state->default_frmsizes.height;
 	state->capture_frmsizes.width = DEFAULT_CAPTURE_WIDTH;
@@ -1294,40 +1060,59 @@ static int s5k5bafx_s_config(struct v4l2_subdev *sd,
 #endif
 
 	state->init_mode = &state->vt_mode;
-
-#ifdef CONFIG_LOAD_FILE
-	err = loadFile();
-	CHECK_ERR_MSG(err, "failed to load file ERR=%d\n", err)
-#endif
-
+    S_FUNC_END
 	return 0;
 }
 
-#if 0
-static int s5k5bafx_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
+static int s5k5bafx_s_power(struct v4l2_subdev *sd, int on)
 {
-	FUNC_ENTR();
-	return 0;
+    struct s5k5bafx_state *state = to_state(sd);
+    //satish : if power is on then do device init
+    int ret = -EINVAL;
+
+    S_FUNC_ENTER
+    printk("HACK:%s: power state:%d\n", __func__, on);
+    /* do device power operation */
+    ret = state->pdata->s_power(sd, on);
+    CHECK_ERR_MSG(ret, "device power operation fail");
+
+    if (on) {
+        ret = s5k5bafx_init(sd, on);
+        CHECK_ERR_MSG(ret, "device init failed");
+
+        //satish: TODO
+        //initialize the v4l2_ctrl_ops
+        // currently putting as part of core ops, if required will move it to
+        // ctrl op
+    } else {
+        printk("\n HACK: turning device to off state");
+    }
+    //
+    return ret;
 }
 
-static int s5k5bafx_querymenu(struct v4l2_subdev *sd, struct v4l2_querymenu *qm)
-{
-	FUNC_ENTR();
-	return 0;
-}
-#endif
 
 static int s5k5bafx_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct s5k5bafx_state *state = to_state(sd);
 	/* struct i2c_client *client = v4l2_get_subdevdata(sd); */
 	int err = 0;
+    printk("HACK:%s: stream enable:%d\n", __func__, enable);
 
 	cam_info("s_stream: mode = %d\n", enable);
 
 	BUG_ON(!state->initialized);
 
-	switch (enable) {
+    /* power up camera */
+    if (enable != STREAM_MODE_CAM_OFF)
+        s5k5bafx_s_power(sd, 1);
+
+    printk("HACK: %s:%d, sensor mode:%d \n", __func__, __LINE__, state->sensor_mode);
+    printk("HACK: %s:%d, req_fmt.priv:%d \n", __func__, __LINE__, state->req_fmt.priv);
+    printk("HACK: %s: %d capture widht:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
+    printk("HACK: %s: %d preview widht:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
+    switch (enable) {
+
 	case STREAM_MODE_CAM_OFF:
 		if (state->sensor_mode == SENSOR_CAMERA) {
 #ifdef SUPPORT_FACTORY_TEST
@@ -1339,6 +1124,8 @@ static int s5k5bafx_s_stream(struct v4l2_subdev *sd, int enable)
 					err = s5k5bafx_control_stream(sd,
 						STREAM_STOP);
 		}
+        printk("HACK: %s(off %d) \n", __func__, __LINE__);
+        s5k5bafx_s_power(sd, 0);
 		break;
 
 	case STREAM_MODE_CAM_ON:
@@ -1366,6 +1153,7 @@ static int s5k5bafx_s_stream(struct v4l2_subdev *sd, int enable)
 		cam_err("%s: ERROR, Invalid stream mode %d\n",
 						__func__, enable);
 		err = -EINVAL;
+        s5k5bafx_s_power(sd, 0);
 		break;
 	}
 
@@ -1386,6 +1174,7 @@ static int s5k5bafx_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	struct s5k5bafx_state *state = to_state(sd);
 	int err = 0;
 
+    printk("HACK:%s:%d \n", __func__, __LINE__);
 	cam_dbg("g_ctrl: id = %d\n", ctrl->id - V4L2_CID_PRIVATE_BASE);
 
 	mutex_lock(&state->ctrl_lock);
@@ -1413,6 +1202,7 @@ static int s5k5bafx_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	struct s5k5bafx_state *state = to_state(sd);
 	int err = 0;
 
+    printk("HACK:%s:%d \n", __func__, __LINE__);
 	cam_dbg("s_ctrl: id = %d, value=%d\n",
 		ctrl->id - V4L2_CID_PRIVATE_BASE, ctrl->value);
 
@@ -1480,10 +1270,76 @@ static int s5k5bafx_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	return 0;
 }
 
+//satish: add internal ops. Required for v4l2 f/w
+/*
+ * V4L2 subdev internal operations
+ */
+static int s5k5bafx_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+{
+	struct v4l2_mbus_framefmt *mf;
+    struct s5k5bafx_state *state = to_state(sd);
+    S_FUNC_ENTER
+
+    mf = v4l2_subdev_get_try_format(fh, 0);
+	mf->code = V4L2_MBUS_FMT_UYVY8_1X16 ;//,state->req_fmt.pixelformat; //s5k5baf_formats[1].code;
+	mf->colorspace = V4L2_COLORSPACE_JPEG, //hardcoding color space as of now
+	mf->field = V4L2_FIELD_NONE;
+	mf->width = state->preview_frmsizes.width; //s5k5baf_cis_rect.width;
+	mf->height = state->preview_frmsizes.height; //s5k5baf_cis_rect.height;
+
+    return 0;
+}
+static int s5k5bafx_registered(struct v4l2_subdev *sd)
+{
+    struct s5k5bafx_state *state = to_state(sd);
+    int ret = v4l2_ctrl_handler_init(&state->ctrl_handler, 1);
+    S_FUNC_ENTER    /* Init controls */
+    if (ret)
+    {
+        printk("%s(failure on %d) \n", __func__, __LINE__);
+        return -EINVAL;
+    }
+
+    state->pixel_rate = v4l2_ctrl_new_std(
+                &state->ctrl_handler, NULL,
+                V4L2_CID_IMAGE_PROC_PIXEL_RATE,
+                0, 0, 1, 0);
+
+    sd->ctrl_handler = &state->ctrl_handler;
+
+    /* satish: set default fps */
+    state->req_fps = DEFAULT_FPS;
+	return 0;
+}
+static void s5k5bafx_unregistered(struct v4l2_subdev *sd)
+{
+    struct s5k5bafx_state *state = to_state(sd);
+    S_FUNC_ENTER
+	v4l2_device_unregister_subdev(&state->sd);
+}
+
+static const struct v4l2_subdev_internal_ops s5k5baf_cis_subdev_internal_ops = {
+	.open = s5k5bafx_open,
+};
+
+static const struct v4l2_subdev_internal_ops s5k5baf_subdev_internal_ops = {
+	.registered = s5k5bafx_registered,
+	.unregistered = s5k5bafx_unregistered,
+	.open = s5k5bafx_open,
+};
+
+/* pad operation */
+static const struct v4l2_subdev_pad_ops s5k5bafx_pad_ops = {
+	.get_fmt		        = s5k5bafx_get_fmt,
+	.set_fmt		        = s5k5bafx_set_fmt,
+};
+
+//
+
 static const struct v4l2_subdev_core_ops s5k5bafx_core_ops = {
-	.init = s5k5bafx_init,		/* initializing API */
-	.g_ctrl = s5k5bafx_g_ctrl,
-	.s_ctrl = s5k5bafx_s_ctrl,
+	.g_ctrl     = s5k5bafx_g_ctrl,
+	.s_ctrl     = s5k5bafx_s_ctrl,
+    .s_power    = s5k5bafx_s_power,
 };
 
 static const struct v4l2_subdev_video_ops s5k5bafx_video_ops = {
@@ -1502,66 +1358,8 @@ static const struct v4l2_subdev_video_ops s5k5bafx_video_ops = {
 static const struct v4l2_subdev_ops s5k5bafx_ops = {
 	.core = &s5k5bafx_core_ops,
 	.video = &s5k5bafx_video_ops,
+    .pad = &s5k5bafx_pad_ops,
 };
-
-#if !defined(CONFIG_MACH_PX)
-ssize_t s5k5bafx_camera_type_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	char *cam_type = "SLSI_S5K5BAFX";
-	cam_info("%s\n", __func__);
-
-	return sprintf(buf, "%s\n", cam_type);
-}
-
-static DEVICE_ATTR(front_camtype, S_IRUGO, s5k5bafx_camera_type_show, NULL);
-
-ssize_t s5k5bafx_startup_time_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	cam_info("%s\n", __func__);
-
-	return sprintf(buf, "%d\n", SMARTSTAY_STARTUP_TIME);
-}
-
-static DEVICE_ATTR(startup_time, S_IRUGO, s5k5bafx_startup_time_show, NULL);
-
-static struct device *s5k5bafx_sysdev;
-
-static int s5k5bafx_create_sysfs(void)
-{
-	cam_dbg("%s\n", __func__);
-
-	s5k5bafx_sysdev = device_create(camera_class, NULL,
-				MKDEV(CAM_MAJOR, 1), NULL, "front");
-	if (IS_ERR(s5k5bafx_sysdev)) {
-		cam_err("failed to create device s5k5bafx_dev!\n");
-		return 0;
-	}
-
-	if (device_create_file(s5k5bafx_sysdev, &dev_attr_front_camtype) < 0) {
-		cam_err("failed to create device file, %s\n",
-				dev_attr_front_camtype.attr.name);
-	}
-
-	if (device_create_file(s5k5bafx_sysdev, &dev_attr_startup_time) < 0) {
-		cam_err("failed to create device file, %s\n",
-				dev_attr_startup_time.attr.name);
-	}
-
-	return 0;
-}
-
-static int s5k5bafx_remove_sysfs(void)
-{
-	device_remove_file(s5k5bafx_sysdev, &dev_attr_front_camtype);
-	device_remove_file(s5k5bafx_sysdev, &dev_attr_startup_time);
-	device_destroy(camera_class, s5k5bafx_sysdev->devt);
-	s5k5bafx_sysdev = NULL;
-
-	return 0;
-}
-#endif /* !CONFIG_MACH_PX */
 
 /*
  * s5k5bafx_probe
@@ -1575,19 +1373,66 @@ static int s5k5bafx_probe(struct i2c_client *client,
 	struct v4l2_subdev *sd = NULL;
 	int err = -EINVAL;
 
-	state = kzalloc(sizeof(struct s5k5bafx_state), GFP_KERNEL);
+    printk("HACK:%s:%d \n", __func__, __LINE__);
+    if (!client->dev.platform_data) {
+        dev_err(&client->dev, "No platform data!!\n");
+        return -ENODEV;
+    }
+
+    state = kzalloc(sizeof(struct s5k5bafx_state), GFP_KERNEL);
 	CHECK_ERR_COND_MSG(!state, -ENOMEM, "fail to get memory(state)\n");
 
 	mutex_init(&state->ctrl_lock);
 
+    state->pdata = client->dev.platform_data;
 	sd = &state->sd;
 	strcpy(sd->name, S5K5BAFX_DRIVER_NAME);
 
 	/* Registering subdev */
 	v4l2_i2c_subdev_init(sd, client, &s5k5bafx_ops);
 
-	err = s5k5bafx_s_config(sd, 0, client->dev.platform_data);
+    printk("HACK:%s:%d \n", __func__, __LINE__);
+    printk("HACK:%s:%d \n", __func__, __LINE__);
+    err = s5k5bafx_s_config(sd, 0, client->dev.platform_data);
 	CHECK_ERR_MSG(err, "fail to s_config\n");
+
+    printk("HACK: %s: req fmt widht:%d, height:%d \n", __func__, state->req_fmt.width, state->req_fmt.height);
+    printk("HACK: %s: default widht:%d, height:%d \n", __func__,  state->default_frmsizes.width, state->default_frmsizes.height);
+    printk("HACK: %s: capture widht:%d, height:%d \n", __func__,  state->capture_frmsizes.width, state->capture_frmsizes.height);
+    printk("HACK: %s: preview widht:%d, height:%d \n", __func__,  state->preview_frmsizes.width, state->preview_frmsizes.height);
+    printk("HACK:%s:%d exif:%d, shutter speed:%d \n", __func__, __LINE__, state->exif.exp_time_den, state->exif.shutter_speed);
+    printk("HACK:%s:%d \n", __func__, __LINE__);
+    //satish : let's power on the device and read chip id
+    err = state->pdata->s_power(sd, 1);
+    CHECK_ERR_MSG(err, "device power on failed");
+
+    printk("HACK:%s:%d \n", __func__, __LINE__);
+    printk("HACK:%s:%d \n", __func__, __LINE__);
+    printk("HACK:%s:%d \n", __func__, __LINE__);
+    //err = s5k5bafx_init(sd, 1);
+    //CHECK_ERR_MSG(err, "device init failed");
+
+    printk("HACK:%s:%d \n", __func__, __LINE__);
+    printk("HACK:%s:%d \n", __func__, __LINE__);
+    err = state->pdata->s_power(sd, 0);
+    CHECK_ERR_MSG(err, "device power off failed");
+    //
+
+    //satish: media entity init
+    snprintf(sd->name, sizeof(sd->name), "%s %d-%04x",S5K5BAFX_DRIVER_NAME,
+                     i2c_adapter_id(client->adapter), client->addr);
+    state->spad.flags   = MEDIA_PAD_FL_SOURCE;
+
+    sd->entity.type     = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
+    sd->internal_ops    = &s5k5baf_subdev_internal_ops;
+    sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+    err = media_entity_init(&sd->entity, 1, &state->spad, 0);
+    if (err != 0) {
+        printk("error: fail to register media entity\n");
+        media_entity_cleanup(&sd->entity);
+        return err;
+    }
+    //
 
 #ifdef S5K5BAFX_BURST_MODE
 	state->burst_buf = kmalloc(SZ_2K, GFP_KERNEL);
@@ -1605,23 +1450,25 @@ static int s5k5bafx_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct s5k5bafx_state *state = to_state(sd);
 
+    printk("HACK:%s:%d \n", __func__, __LINE__);
 	cam_trace("E\n");
 
 	state->initialized = 0;
 
+    //satish : TODO
+    //write clean up for 
+    //ctrl_handler & media_entity
+    v4l2_ctrl_handler_free(&state->ctrl_handler);
+	v4l2_device_unregister_subdev(&state->sd);
+    media_entity_cleanup(&sd->entity);
+
+    //
 	v4l2_device_unregister_subdev(sd);
 #ifdef S5K5BAFX_BURST_MODE
 	kfree(state->burst_buf);
 #endif
 	kfree(state);
 
-#ifdef CONFIG_LOAD_FILE
-	if (testBuf) {
-		large_file ? vfree(testBuf) : kfree(testBuf);
-		large_file = 0;
-		testBuf = NULL;
-	}
-#endif
 	printk(KERN_DEBUG "%s %s: driver removed!!\n",
 		dev_driver_string(&client->dev), dev_name(&client->dev));
 	return 0;
@@ -1634,7 +1481,9 @@ static const struct i2c_device_id s5k5bafx_id[] = {
 MODULE_DEVICE_TABLE(i2c, s5k5bafx_id);
 
 static struct i2c_driver v4l2_i2c_driver = {
-	.driver.name	= S5K5BAFX_DRIVER_NAME,
+    .driver = {
+        .name = S5K5BAFX_DRIVER_NAME,
+    },
 	.probe		= s5k5bafx_probe,
 	.remove		= s5k5bafx_remove,
 	.id_table	= s5k5bafx_id,
@@ -1642,19 +1491,15 @@ static struct i2c_driver v4l2_i2c_driver = {
 
 static int __init v4l2_i2c_drv_init(void)
 {
+    printk("HACK:%s:%d \n", __func__, __LINE__);
 	pr_debug("%s: init\n", S5K5BAFX_DRIVER_NAME);
-#if !defined(CONFIG_MACH_PX)
-	s5k5bafx_create_sysfs();
-#endif
 	return i2c_add_driver(&v4l2_i2c_driver);
 }
 
 static void __exit v4l2_i2c_drv_cleanup(void)
 {
+    printk("HACK:%s:%d \n", __func__, __LINE__);
 	pr_debug("%s: clean\n", S5K5BAFX_DRIVER_NAME);
-#if !defined(CONFIG_MACH_PX)
-	s5k5bafx_remove_sysfs();
-#endif
 	i2c_del_driver(&v4l2_i2c_driver);
 }
 
