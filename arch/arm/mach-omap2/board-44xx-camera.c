@@ -32,6 +32,11 @@
 #include <linux/regulator/lp8720.h>
 #endif
 
+#ifdef CONFIG_VIDEO_S5K5BAFX
+#include <media/s5k5bafx_platform.h>
+//#include <media/s5k5baf_platform.h>
+#endif //CONFIG_VIDEO_S5K5BAFX
+
 #include "devices.h"
 #include "../../../drivers/media/video/omap4iss/iss.h"
 #include "control.h"
@@ -44,6 +49,11 @@
 /* touch is on i2c2 */
 #define GPIO_TOUCH_SCL  128
 #define GPIO_TOUCH_SDA  129
+
+static struct clk *board_44xx_cam_aux_clk1;
+static struct clk *board_44xx_cam_aux_clk2;
+static struct clk *board_44xx_cam_aux_clk3;
+static struct regulator *ov5640_cam2pwr_reg;
 
 static struct lm3559_platform_data lm3559_pdata = {
 	.gpio_hwen      =       GPIO_LED_EN,
@@ -155,13 +165,101 @@ void __init omap4_camera_input_init(void)
 	camera_pmic_init();
 }
 
+// FC - Front Camera configurations
+#ifdef CONFIG_VIDEO_S5K5BAFX
+
+#define FC_GPIO_CAM_PWRDN            38
+#define FC_GPIO_CAM_RESET            82
+
+#define S5K5BAFX_I2C_ADDRESS   (0x5A >> 1)
+
+static int board_44xx_fc_power(struct v4l2_subdev *subdev, int on)
+{
+	int ret;
+	printk("HACK:%s() power: %s\n", __func__, ((on == 1)?"ON":"OFF"));
+
+	if (on) {
+		gpio_set_value(FC_GPIO_CAM_PWRDN, 1);
+		msleep(5);
+
+        gpio_set_value(FC_GPIO_CAM_RESET, 0);
+		msleep(5);
+		gpio_set_value(FC_GPIO_CAM_RESET, 1);
+
+		if (!regulator_is_enabled(ov5640_cam2pwr_reg)) {
+			printk("regulator enable\n");
+			ret = regulator_enable(ov5640_cam2pwr_reg);
+			if (ret) {
+				printk("Error in enabling sensor power regulator 'cam2pwr'\n");
+				return ret;
+			}
+			msleep(50);
+		}
+		ret = clk_enable(board_44xx_cam_aux_clk2);
+		if (ret) {
+			printk("Error in clk_enable(2) in %s(%d)\n", __func__, on);
+			gpio_set_value(FC_GPIO_CAM_PWRDN, 0);
+			regulator_disable(ov5640_cam2pwr_reg);
+			//clk_disable(board_44xx_cam_aux_clk1);
+			return ret;
+		}
+		mdelay(2);
+
+	} else {
+        clk_disable(board_44xx_cam_aux_clk2);
+		gpio_set_value(FC_GPIO_CAM_PWRDN, 0);
+		if (regulator_is_enabled(ov5640_cam2pwr_reg)) {
+			printk("regulator disable\n");
+			ret = regulator_disable(ov5640_cam2pwr_reg);
+			if (ret) {
+				printk("Error in disabling sensor power regulator 'cam2pwr'\n");
+				return ret;
+			}
+		}
+		gpio_set_value(FC_GPIO_CAM_RESET, 0);
+	}
+	return 0;
+}
+#if 0 // s5k5baf
+static struct s5k5baf_platform_data s5k5bafx_plat = {
+    .default_width = 640,
+    .default_height = 480,
+    .pixelformat = V4L2_PIX_FMT_UYVY,
+    .freq = 24000000,
+    .is_mipi = 0,
+    .init_streamoff = true,
+    .s_power = board_44xx_fc_power,
+};
+#else //s5k5bafx-v3
+static struct s5k5bafx_platform_data s5k5bafx_plat = {
+    .default_width = 640,
+    .default_height = 480,
+    .pixelformat = V4L2_MBUS_FMT_UYVY8_1X16,//V4L2_PIX_FMT_UYVY,
+    .freq = 24000000,
+    .is_mipi = 1,
+    .init_streamoff = true,
+    .streamoff_delay = S5K5BAFX_STREAMOFF_DELAY,
+    .dbg_level = CAMDBG_LEVEL_TRACE,
+    .s_power = board_44xx_fc_power,
+};
+#endif
+static struct i2c_board_info s5k5bafx_i2c_info = {
+    I2C_BOARD_INFO("S5K5BAFX", S5K5BAFX_I2C_ADDRESS),
+    .platform_data = &s5k5bafx_plat,
+};
+
+static struct iss_subdev_i2c_board_info s5k5bafx_camera_subdevs[] = {
+        {
+                .board_info = &s5k5bafx_i2c_info,
+                .i2c_adapter_id = 3,
+        },
+        { NULL, 0, },
+};
+
+#endif //CONFIG_VIDEO_S5K5BAFX
+
 #define PANDA_GPIO_CAM_PWRDN            39
 #define PANDA_GPIO_CAM_RESET            81
-
-static struct clk *board_44xx_cam_aux_clk1;
-static struct clk *board_44xx_cam_aux_clk2;
-static struct clk *board_44xx_cam_aux_clk3;
-static struct regulator *ov5640_cam2pwr_reg;
 
 static int board_44xx_ov_power(struct v4l2_subdev *subdev, int on)
 {
@@ -256,21 +354,44 @@ static struct iss_v4l2_subdevs_group board_44xx_camera_subdevs[] = {
                 .bus = { .csi2 = {
                         .lanecfg        = {
                                 .clk = {
-                                        .pol = 1,
+                                        .pol = 0,
                                         .pos = 1,
                                 },
                                 .data[0] = {
-                                        .pol = 1,
+                                        .pol = 0,
                                         .pos = 2,
                                 },
                                 .data[1] = {
-                                        .pol = 1,
+                                        .pol = 0,
                                         .pos = 3,
                                 },
 
                         },
                 } },
         },
+#ifdef CONFIG_VIDEO_S5K5BAFX
+        {
+            .subdevs = s5k5bafx_camera_subdevs,
+            .interface = ISS_INTERFACE_CSI2B_PHY2,
+            .bus = { .csi2 = {
+                /*
+                 * The lane module polarity and positions are configurable;
+                 * that is, any lane module can be chosen as the clock lane module, and the
+                 * DX/DY data pad for each lane module can be configured as DP or DN pins defined
+                 */
+                .lanecfg    = {
+                    .clk = {
+                        .pol = 0, /* +/- differential pin order of clock lane */
+                        .pos = 1, /* Position */
+                },
+                    .data[0] = {
+                        .pol = 0,
+                        .pos = 2,
+                    },
+                },
+            } },
+        },
+#endif // CONFIG_VIDEO_S5K5BAFX
         { },
 };
 
@@ -314,6 +435,24 @@ static struct omap_device_pad omap4iss_pads[] = {
                 .name   = "csi21_dy2.csi21_dy2",
                 .enable = OMAP_MUX_MODE0 | OMAP_INPUT_EN,
         },
+#ifdef CONFIG_VIDEO_S5K5BAFX
+        {
+                .name   = "csi22_dx0.csi22_dx0",
+                .enable = OMAP_MUX_MODE0 | OMAP_INPUT_EN,
+        },
+        {
+                .name   = "csi22_dy0.csi22_dy0",
+                .enable = OMAP_MUX_MODE0 | OMAP_INPUT_EN,
+        },
+        {
+                .name   = "csi22_dx1.csi22_dx1",
+                .enable = OMAP_MUX_MODE0 | OMAP_INPUT_EN,
+        },
+        {
+                .name   = "csi22_dy1.csi22_dy1",
+                .enable = OMAP_MUX_MODE0 | OMAP_INPUT_EN,
+        },
+#endif // CONFIG_VIDEO_S5K5BAFX
 };
 
 static struct omap_board_data omap4iss_data = {
@@ -322,7 +461,7 @@ static struct omap_board_data omap4iss_data = {
         .pads_cnt               = ARRAY_SIZE(omap4iss_pads),
 };
 
-static int __init board_44xx_camera_init(void)
+static int board_44xx_camera_ov5640_init(void)
 {
 	ov5640_cam2pwr_reg = regulator_get(NULL, "cam2pwr");
 	if (IS_ERR(ov5640_cam2pwr_reg)) {
@@ -373,6 +512,7 @@ static int __init board_44xx_camera_init(void)
 			OMAP4_CAMERARX_CSI21_CTRLCLKEN_MASK,
 			OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_CAMERA_RX);
 
+    printk("HACK: %s() : %x\n", __func__, omap4_ctrl_pad_readl(OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_CAMERA_RX));
 	/* Select GPIO 45 */
 	omap_mux_init_gpio(PANDA_GPIO_CAM_PWRDN, OMAP_PIN_OUTPUT);
 
@@ -395,8 +535,91 @@ static int __init board_44xx_camera_init(void)
 	msleep(5);
 	gpio_set_value(PANDA_GPIO_CAM_RESET, 1);
 
-	omap4_init_camera(&board_44xx_iss_platform_data, &omap4iss_data);
+	// omap4_init_camera(&board_44xx_iss_platform_data, &omap4iss_data);
 	return 0;
 }
-        
+
+#ifdef CONFIG_VIDEO_S5K5BAFX
+static int board_44xx_camera_s5k5bafx_init(void)
+{
+    printk("HACK:%s\n", __func__);
+
+    // satish
+    /* TODO: 
+    - Get front camera power supply (confirm with Akshat)
+    - set the right voltage
+    - clock reference - confirm with akshat 
+    - regulator are same for cam1 and cam2 so skiping clk and regulator init here
+    */
+
+	/*
+	 * CSI22:
+	 *   LANEENABLE[2:0] = 00111(0x7) - Lanes 0, 1 & 2 enabled. But will be using only 1 & 2
+	 *   CTRLCLKEN = 1 - Active high enable for CTRLCLK
+	 *   CAMMODE = 0 - DPHY mode
+	 */
+    omap4_ctrl_pad_writel((omap4_ctrl_pad_readl(OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_CAMERA_RX) &
+                ~(OMAP4_CAMERARX_CSI21_LANEENABLE_MASK |
+                    OMAP4_CAMERARX_CSI21_CAMMODE_MASK |
+                    OMAP4_CAMERARX_CSI22_LANEENABLE_MASK |
+                    OMAP4_CAMERARX_CSI22_CAMMODE_MASK)) |
+            (0x7 << OMAP4_CAMERARX_CSI21_LANEENABLE_SHIFT) |
+            (0x3 << OMAP4_CAMERARX_CSI22_LANEENABLE_SHIFT) |
+                (OMAP4_CAMERARX_CSI21_CTRLCLKEN_MASK | OMAP4_CAMERARX_CSI22_CTRLCLKEN_MASK),
+                OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_CAMERA_RX);
+    printk("HACK: %s() : %x\n", __func__, omap4_ctrl_pad_readl(OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_CAMERA_RX));
+#if 0
+    omap4_ctrl_pad_writel((omap4_ctrl_pad_readl(OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_CAMERA_RX) &
+                ~(OMAP4_CAMERARX_CSI22_LANEENABLE_MASK |
+                OMAP4_CAMERARX_CSI22_CAMMODE_MASK)) |
+                (0x3 << OMAP4_CAMERARX_CSI22_LANEENABLE_SHIFT),
+                OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_CAMERA_RX);
+#endif
+    printk("%s() : %x\n", __func__, omap4_ctrl_pad_readl(OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_CAMERA_RX));
+
+	/* Select GPIO 38: CAM_VT_nSTBY */
+	omap_mux_init_gpio(FC_GPIO_CAM_PWRDN, OMAP_PIN_OUTPUT);
+
+	/* Select GPIO 82: CAM_VT_nRST */
+	omap_mux_init_gpio(FC_GPIO_CAM_RESET, OMAP_PIN_OUTPUT);
+
+	/* Init FREF_CLK2_OUT */
+    /* Note: We do not consider clk3, no led support as of now */
+	omap_mux_init_signal("fref_clk2_out", OMAP_PIN_OUTPUT);
+	omap_mux_init_signal("fref_clk3_out", OMAP_PIN_OUTPUT);
+	if (gpio_request_one(FC_GPIO_CAM_PWRDN, GPIOF_OUT_INIT_HIGH,
+				"FC_CAM_PWRDN"))
+		printk(KERN_WARNING "Cannot request GPIO %d\n",
+				FC_GPIO_CAM_PWRDN);
+
+	if (gpio_request_one(FC_GPIO_CAM_RESET, GPIOF_OUT_INIT_HIGH,
+				"FC_CAM_RESET"))
+		printk(KERN_WARNING "Cannot request GPIO %d\n",
+				FC_GPIO_CAM_RESET);
+
+	gpio_set_value(FC_GPIO_CAM_RESET, 0);
+	msleep(5);
+	gpio_set_value(FC_GPIO_CAM_RESET, 1);
+
+	return 0;
+}
+#endif // CONFIG_VIDEO_S5K5BAFX
+
+static int __init board_44xx_camera_init(void)
+{
+    int res = 0;
+    printk("HACK: %s\n", __func__);
+    res = board_44xx_camera_ov5640_init();
+    if (res < 0)
+        printk("HACK: camera ov5640 init failed:%d\n", res);
+#ifdef CONFIG_VIDEO_S5K5BAFX
+    res = board_44xx_camera_s5k5bafx_init();
+    if (res < 0)
+        printk("HACK: camera s5k5bafx init failed:%d\n", res);
+#endif // CONFIG_VIDEO_S5K5BAFX
+
+    omap4_init_camera(&board_44xx_iss_platform_data, &omap4iss_data);
+    return res;
+}
+
 late_initcall(board_44xx_camera_init);
