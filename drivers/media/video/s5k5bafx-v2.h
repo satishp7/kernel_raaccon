@@ -15,6 +15,9 @@
 
 #include <linux/types.h>
 
+//satish
+#include <media/v4l2-ctrls.h>
+
 #ifdef CONFIG_VIDEO_SAMSUNG_V4L2
 #include <linux/videodev2_exynos_camera.h>
 #endif
@@ -25,12 +28,15 @@
  * FEATURE DEFINITIONS
  ************************************/
 /* #define S5K5BAFX_USLEEP */
-#define S5K5BAFX_BURST_MODE
+// #define S5K5BAFX_BURST_MODE
 /* #define CONFIG_LOAD_FILE */
 /* #define SUPPORT_FACTORY_TEST */
 
+//#define SUPPORT_FACTORY_TEST
+
 /** Debuging Feature **/
 #define CONFIG_CAM_DEBUG
+#define CONFIG_CAM_TRACE
 /* #define CONFIG_CAM_TRACE *//* Enable it with CONFIG_CAM_DEBUG */
 /***********************************/
 
@@ -191,6 +197,9 @@ struct s5k5bafx_regs {
 struct s5k5bafx_state {
 	struct v4l2_subdev sd;
 	struct s5k5bafx_platform_data *pdata;
+
+    //satish: add media entity
+    struct media_pad spad;
 	/*
 	 * req_fmt is the requested format from the application.
 	 * set_fmt is the output format of the camera. Finally FIMC
@@ -205,6 +214,10 @@ struct s5k5bafx_state {
 	struct s5k5bafx_stream_time stream_time;
 	const struct s5k5bafx_regs *regs;
 	struct mutex ctrl_lock;
+
+    // satish add ctrl class
+    struct v4l2_ctrl_handler ctrl_handler;
+    struct v4l2_ctrl *pixel_rate;
 
 	enum v4l2_sensor_mode sensor_mode;
 	s32 *init_mode;
