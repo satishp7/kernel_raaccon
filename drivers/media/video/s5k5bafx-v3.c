@@ -30,12 +30,6 @@
 #include <linux/cpufreq.h>
 #endif
 
-#define S_FUNC_ENTER    printk("\n HACK: %s:%d, ENTER\n", __func__, __LINE__);
-#define S_FUNC_END      printk("\n HACK: %s:%d, END\n", __func__, __LINE__);
-
-static struct class *camera_class;
-
-
 static const struct s5k5bafx_fps s5k5bafx_framerates[] = {
 	{ I_FPS_0,	FRAME_RATE_AUTO },
 	{ I_FPS_7,	FRAME_RATE_7 },
@@ -204,7 +198,7 @@ static int s5k5bafx_write_regs(struct v4l2_subdev *sd,
 	u16 delay = 0;
 
     if (client == NULL || packet == NULL) {
-        printk("\n HACK: v4l2 subdev does not have client data\n");
+        printk("\n [S5K5BAFX]: v4l2 subdev does not have client data\n");
         return -EINVAL;
     }
 #ifdef S5K5BAFX_BURST_MODE
@@ -459,7 +453,7 @@ static inline int s5k5bafx_check_esd(struct v4l2_subdev *sd)
 	err = s5k5bafx_check_sensor_status(sd);
 	CHECK_ERR(err);
 
-	return 0;	
+	return 0;
 }
 
 static int s5k5bafx_set_preview_start(struct v4l2_subdev *sd)
@@ -500,9 +494,8 @@ static int s5k5bafx_set_sensor_mode(struct v4l2_subdev *sd,
 					s32 val)
 {
 	struct s5k5bafx_state *state = to_state(sd);
-    S_FUNC_ENTER
-    printk("\n%s:val:%d", __func__, val);
-	switch (val) {
+
+    switch (val) {
 	case SENSOR_MOVIE:
 		if (state->vt_mode) {
 			state->sensor_mode = SENSOR_CAMERA;
@@ -529,8 +522,6 @@ static int s5k5bafx_init_regs(struct v4l2_subdev *sd)
 	u16 read_value = 0;
 	int err = -ENODEV;
 
-    S_FUNC_ENTER
-
 	/* enter read mode */
 	err = s5k5bafx_read_reg(sd, 0xD000, 0x1006, &read_value);
 	if (unlikely(err < 0))
@@ -553,10 +544,6 @@ static int s5k5bafx_init_regs(struct v4l2_subdev *sd)
 	CHECK_ERR_COND(err < 0, -ENODEV);
 
 	state->regs = &reg_datas;
-    printk("HACK: %s: %d capture widht:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
-    printk("HACK: %s: %d preview widht:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
-    S_FUNC_END
-
 	return 0;
 }
 static int s5k5bafx_g_mbus_fmt(struct v4l2_subdev *sd,
@@ -572,7 +559,6 @@ static int s5k5bafx_enum_framesizes(struct v4l2_subdev *sd, \
 	struct s5k5bafx_state *state = to_state(sd);
 
 	cam_trace("E\n");
-    S_FUNC_ENTER
 	/*
 	 * Return the actual output settings programmed to the camera
 	 */
@@ -626,11 +612,10 @@ static int s5k5bafx_s_mbus_fmt(struct v4l2_subdev *sd,
 	u32 *width = NULL, *height = NULL;
 
 	cam_trace("E\n");
-    S_FUNC_ENTER
 	//satish
-    printk("HACK: code:%d, colorspace:%d\n", mf->code, mf->colorspace);
-    printk("HACK: width:%d, height:%d\n", mf->width, mf->height);
-    printk("HACK: field:%d, \n", mf->field);
+    cam_info("code:%d, colorspace:%d\n", mf->code, mf->colorspace);
+    cam_info("width:%d, height:%d\n", mf->width, mf->height);
+    cam_info("field:%d, \n", mf->field);
 
     /* NOTE: This is always true for now, revisit later. */
     state->pixel_rate->cur.val64 = 42000000;
@@ -791,7 +776,6 @@ static int s5k5bafx_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *parms
 {
 	int err = 0;
 	struct s5k5bafx_state *state = to_state(sd);
-    S_FUNC_ENTER
 	state->req_fps = parms->parm.capture.timeperframe.denominator /
 			parms->parm.capture.timeperframe.numerator;
 
@@ -845,6 +829,7 @@ static int s5k5bafx_set_60hz_antibanding(struct v4l2_subdev *sd)
 }
 #endif
 
+#ifdef CONFIG_VIDEO_IMPROVE_STREAMOFF
 static int s5k5bafx_wait_steamoff(struct v4l2_subdev *sd)
 {
 	struct s5k5bafx_state *state = to_state(sd);
@@ -852,9 +837,8 @@ static int s5k5bafx_wait_steamoff(struct v4l2_subdev *sd)
 	s32 elapsed_msec = 0;
 
 	cam_trace("E\n");
-    printk("HACK:%s:%d \n", __func__, __LINE__);
 
-	if (unlikely(!(state->pdata->is_mipi & state->need_wait_streamoff)))
+    if (unlikely(!(state->pdata->is_mipi & state->need_wait_streamoff)))
 		return 0;
 
 	do_gettimeofday(&stream_time->curr_time);
@@ -873,14 +857,16 @@ static int s5k5bafx_wait_steamoff(struct v4l2_subdev *sd)
 
 	return 0;
 }
+#endif //CONFIG_VIDEO_IMPROVE_STREAMOFF
 
 static int s5k5bafx_control_stream(struct v4l2_subdev *sd, u32 cmd)
 {
 	struct s5k5bafx_state *state = to_state(sd);
 	int err = -EINVAL;
 
-    printk("HACK:%s:%d \n", __func__, __LINE__);
-	if (unlikely(!state->pdata->is_mipi || (cmd != STREAM_STOP)))
+	cam_trace("E\n");
+
+    if (unlikely(!state->pdata->is_mipi || (cmd != STREAM_STOP)))
 		return 0;
 
 	cam_info("STREAM STOP!!\n");
@@ -898,45 +884,38 @@ static int s5k5bafx_control_stream(struct v4l2_subdev *sd, u32 cmd)
 }
 
 // satish: Add pad operations
-
 static int s5k5bafx_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *mf = &fmt->format;
     struct s5k5bafx_state *state = to_state(sd);
-    S_FUNC_ENTER
-    printk("HACK: fmt which:%d, pad:%d\n", fmt->which, fmt->pad);
-	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
+	cam_trace("E\n");
+
+    if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		mf = v4l2_subdev_get_try_format(fh, fmt->pad);
 		fmt->format = *mf;
-        printk("HACK: %s:%dsubdev try\n", __func__, __LINE__);
+        printk("[S5K5BAFX]: %s:%dsubdev try\n", __func__, __LINE__);
 		return 0;
 	}
-    // fill default value as of now
-    if (fh == NULL) {
-        printk("HACK: really fh shuold not be null\n");
-    }
 	mf = &fmt->format;
     if (mf == NULL) {
-        printk("HACK: really mf shuold not be null\n");
+        printk("[S5K5BAFX]: really mf shuold not be null\n");
     }
-    printk("HACK: code:%d, colorspace:%d\n", mf->code, mf->colorspace);
 
-    mf->code = state->req_fmt.pixelformat; //s5k5baf_formats[1].code;
+    mf->code = state->req_fmt.pixelformat;
 	mf->colorspace = V4L2_COLORSPACE_JPEG, //hardcoding color space as of now
 	mf->field = V4L2_FIELD_NONE;
-	mf->width = state->preview_frmsizes.width; //s5k5baf_cis_rect.width;
-	mf->height = state->preview_frmsizes.height; //s5k5baf_cis_rect.height;
-    printk("HACK: code:%d, colorspace:%d\n", mf->code, mf->colorspace);
-    printk("HACK: width:%d, height:%d\n", mf->width, mf->height);
+	mf->width = state->preview_frmsizes.width;
+	mf->height = state->preview_frmsizes.height;
+    cam_info("[S5K5BAFX]: code:%d, colorspace:%d\n", mf->code, mf->colorspace);
+    cam_info("[S5K5BAFX]: width:%d, height:%d\n", mf->width, mf->height);
+
     return 0;
 }
 static int s5k5bafx_set_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *mf = &fmt->format;
-    S_FUNC_ENTER
-
     return s5k5bafx_s_mbus_fmt(sd, mf);
 }
 //
@@ -946,11 +925,10 @@ static int s5k5bafx_init(struct v4l2_subdev *sd, u32 val)
 	struct s5k5bafx_state *state = to_state(sd);
 	int err = -EINVAL;
 
-    printk("HACK:%s:%d \n", __func__, __LINE__);
 	cam_trace("E\n");
 
-    printk("HACK: %s: %d capture widht:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
-    printk("HACK: %s: %d preview widht:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
+    printk("[S5K5BAFX]: %s: %d capture widht:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
+    printk("[S5K5BAFX]: %s: %d preview widht:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
 	err = s5k5bafx_init_regs(sd);
 	CHECK_ERR_MSG(err, "failed to indentify sensor chip\n");
 
@@ -990,8 +968,8 @@ static int s5k5bafx_init(struct v4l2_subdev *sd, u32 val)
 		err = s5k5bafx_set_frame_rate(sd, state->req_fps);
 		CHECK_ERR(err);
 	}
-    printk("HACK: %s: %d capture widht:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
-    printk("HACK: %s: %d preview widht:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
+    printk("[S5K5BAFX]: %s: %d capture widht:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
+    printk("[S5K5BAFX]: %s: %d preview widht:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
 
 	return 0;
 }
@@ -1008,14 +986,13 @@ static int s5k5bafx_s_config(struct v4l2_subdev *sd,
 		int irq, void *platform_data)
 {
 	struct s5k5bafx_state *state = to_state(sd);
-
-    printk("HACK:%s:%d \n", __func__, __LINE__);
+	state->pdata = platform_data;
+	state->dbg_level = &state->pdata->dbg_level;
+	cam_trace("E\n");
 	if (!platform_data) {
 		cam_err("%s: ERROR, no platform data\n", __func__);
 		return -ENODEV;
 	}
-	state->pdata = platform_data;
-	state->dbg_level = &state->pdata->dbg_level;
 
 	state->req_fps = -1;
 	state->sensor_mode = SENSOR_CAMERA;
@@ -1060,7 +1037,6 @@ static int s5k5bafx_s_config(struct v4l2_subdev *sd,
 #endif
 
 	state->init_mode = &state->vt_mode;
-    S_FUNC_END
 	return 0;
 }
 
@@ -1070,8 +1046,7 @@ static int s5k5bafx_s_power(struct v4l2_subdev *sd, int on)
     //satish : if power is on then do device init
     int ret = -EINVAL;
 
-    S_FUNC_ENTER
-    printk("HACK:%s: power state:%d\n", __func__, on);
+	cam_trace("E\n");
     /* do device power operation */
     ret = state->pdata->s_power(sd, on);
     CHECK_ERR_MSG(ret, "device power operation fail");
@@ -1085,7 +1060,7 @@ static int s5k5bafx_s_power(struct v4l2_subdev *sd, int on)
         // currently putting as part of core ops, if required will move it to
         // ctrl op
     } else {
-        printk("\n HACK: turning device to off state");
+        cam_info("turning device to off state \n");
     }
     //
     return ret;
@@ -1097,7 +1072,6 @@ static int s5k5bafx_s_stream(struct v4l2_subdev *sd, int enable)
 	struct s5k5bafx_state *state = to_state(sd);
 	/* struct i2c_client *client = v4l2_get_subdevdata(sd); */
 	int err = 0;
-    printk("HACK:%s: stream enable:%d\n", __func__, enable);
 
 	cam_info("s_stream: mode = %d\n", enable);
 
@@ -1107,10 +1081,9 @@ static int s5k5bafx_s_stream(struct v4l2_subdev *sd, int enable)
     if (enable != STREAM_MODE_CAM_OFF)
         s5k5bafx_s_power(sd, 1);
 
-    printk("HACK: %s:%d, sensor mode:%d \n", __func__, __LINE__, state->sensor_mode);
-    printk("HACK: %s:%d, req_fmt.priv:%d \n", __func__, __LINE__, state->req_fmt.priv);
-    printk("HACK: %s: %d capture widht:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
-    printk("HACK: %s: %d preview widht:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
+    //cam_info("%s: %d capture width:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
+    cam_info("%s: %d preview width:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
+
     switch (enable) {
 
 	case STREAM_MODE_CAM_OFF:
@@ -1124,7 +1097,6 @@ static int s5k5bafx_s_stream(struct v4l2_subdev *sd, int enable)
 					err = s5k5bafx_control_stream(sd,
 						STREAM_STOP);
 		}
-        printk("HACK: %s(off %d) \n", __func__, __LINE__);
         s5k5bafx_s_power(sd, 0);
 		break;
 
@@ -1174,7 +1146,6 @@ static int s5k5bafx_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	struct s5k5bafx_state *state = to_state(sd);
 	int err = 0;
 
-    printk("HACK:%s:%d \n", __func__, __LINE__);
 	cam_dbg("g_ctrl: id = %d\n", ctrl->id - V4L2_CID_PRIVATE_BASE);
 
 	mutex_lock(&state->ctrl_lock);
@@ -1202,7 +1173,6 @@ static int s5k5bafx_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	struct s5k5bafx_state *state = to_state(sd);
 	int err = 0;
 
-    printk("HACK:%s:%d \n", __func__, __LINE__);
 	cam_dbg("s_ctrl: id = %d, value=%d\n",
 		ctrl->id - V4L2_CID_PRIVATE_BASE, ctrl->value);
 
@@ -1270,7 +1240,7 @@ static int s5k5bafx_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 	return 0;
 }
 
-//satish: add internal ops. Required for v4l2 f/w
+// satish: add internal ops. Required for v4l2 f/w
 /*
  * V4L2 subdev internal operations
  */
@@ -1278,7 +1248,7 @@ static int s5k5bafx_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *mf;
     struct s5k5bafx_state *state = to_state(sd);
-    S_FUNC_ENTER
+	cam_trace("E\n");
 
     mf = v4l2_subdev_get_try_format(fh, 0);
 	mf->code = V4L2_MBUS_FMT_UYVY8_1X16 ;//,state->req_fmt.pixelformat; //s5k5baf_formats[1].code;
@@ -1293,7 +1263,7 @@ static int s5k5bafx_registered(struct v4l2_subdev *sd)
 {
     struct s5k5bafx_state *state = to_state(sd);
     int ret = v4l2_ctrl_handler_init(&state->ctrl_handler, 1);
-    S_FUNC_ENTER    /* Init controls */
+	cam_trace("E\n");
     if (ret)
     {
         printk("%s(failure on %d) \n", __func__, __LINE__);
@@ -1314,7 +1284,7 @@ static int s5k5bafx_registered(struct v4l2_subdev *sd)
 static void s5k5bafx_unregistered(struct v4l2_subdev *sd)
 {
     struct s5k5bafx_state *state = to_state(sd);
-    S_FUNC_ENTER
+	cam_trace("E\n");
 	v4l2_device_unregister_subdev(&state->sd);
 }
 
@@ -1333,7 +1303,6 @@ static const struct v4l2_subdev_pad_ops s5k5bafx_pad_ops = {
 	.get_fmt		        = s5k5bafx_get_fmt,
 	.set_fmt		        = s5k5bafx_set_fmt,
 };
-
 //
 
 static const struct v4l2_subdev_core_ops s5k5bafx_core_ops = {
@@ -1343,13 +1312,10 @@ static const struct v4l2_subdev_core_ops s5k5bafx_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops s5k5bafx_video_ops = {
-	/*.s_crystal_freq = s5k5bafx_s_crystal_freq,*/
 	.g_mbus_fmt = s5k5bafx_g_mbus_fmt,
 	.s_mbus_fmt = s5k5bafx_s_mbus_fmt,
 	.s_stream = s5k5bafx_s_stream,
 	.enum_framesizes = s5k5bafx_enum_framesizes,
-	/*.enum_frameintervals = s5k5bafx_enum_frameintervals,*/
-	/* .enum_mbus_fmt = s5k5bafx_enum_mbus_fmt, */
 	.try_mbus_fmt = s5k5bafx_try_mbus_fmt,
 	.g_parm	= s5k5bafx_g_parm,
 	.s_parm	= s5k5bafx_s_parm,
@@ -1373,7 +1339,7 @@ static int s5k5bafx_probe(struct i2c_client *client,
 	struct v4l2_subdev *sd = NULL;
 	int err = -EINVAL;
 
-    printk("HACK:%s:%d \n", __func__, __LINE__);
+    printk("[S5K5BAFX]:%s:%d \n", __func__, __LINE__);
     if (!client->dev.platform_data) {
         dev_err(&client->dev, "No platform data!!\n");
         return -ENODEV;
@@ -1391,29 +1357,27 @@ static int s5k5bafx_probe(struct i2c_client *client,
 	/* Registering subdev */
 	v4l2_i2c_subdev_init(sd, client, &s5k5bafx_ops);
 
-    printk("HACK:%s:%d \n", __func__, __LINE__);
-    printk("HACK:%s:%d \n", __func__, __LINE__);
     err = s5k5bafx_s_config(sd, 0, client->dev.platform_data);
 	CHECK_ERR_MSG(err, "fail to s_config\n");
 
-    printk("HACK: %s: req fmt widht:%d, height:%d \n", __func__, state->req_fmt.width, state->req_fmt.height);
-    printk("HACK: %s: default widht:%d, height:%d \n", __func__,  state->default_frmsizes.width, state->default_frmsizes.height);
-    printk("HACK: %s: capture widht:%d, height:%d \n", __func__,  state->capture_frmsizes.width, state->capture_frmsizes.height);
-    printk("HACK: %s: preview widht:%d, height:%d \n", __func__,  state->preview_frmsizes.width, state->preview_frmsizes.height);
-    printk("HACK:%s:%d exif:%d, shutter speed:%d \n", __func__, __LINE__, state->exif.exp_time_den, state->exif.shutter_speed);
-    printk("HACK:%s:%d \n", __func__, __LINE__);
+    printk("[S5K5BAFX]: %s: req fmt widht:%d, height:%d \n", __func__, state->req_fmt.width, state->req_fmt.height);
+    printk("[S5K5BAFX]: %s: default widht:%d, height:%d \n", __func__,  state->default_frmsizes.width, state->default_frmsizes.height);
+    printk("[S5K5BAFX]: %s: capture widht:%d, height:%d \n", __func__,  state->capture_frmsizes.width, state->capture_frmsizes.height);
+    printk("[S5K5BAFX]: %s: preview widht:%d, height:%d \n", __func__,  state->preview_frmsizes.width, state->preview_frmsizes.height);
+    printk("[S5K5BAFX]:%s:%d exif:%d, shutter speed:%d \n", __func__, __LINE__, state->exif.exp_time_den, state->exif.shutter_speed);
+
     //satish : let's power on the device and read chip id
     err = state->pdata->s_power(sd, 1);
     CHECK_ERR_MSG(err, "device power on failed");
 
-    printk("HACK:%s:%d \n", __func__, __LINE__);
-    printk("HACK:%s:%d \n", __func__, __LINE__);
-    printk("HACK:%s:%d \n", __func__, __LINE__);
+    printk("[S5K5BAFX]:%s:%d \n", __func__, __LINE__);
+    printk("[S5K5BAFX]:%s:%d \n", __func__, __LINE__);
+    printk("[S5K5BAFX]:%s:%d \n", __func__, __LINE__);
     //err = s5k5bafx_init(sd, 1);
     //CHECK_ERR_MSG(err, "device init failed");
 
-    printk("HACK:%s:%d \n", __func__, __LINE__);
-    printk("HACK:%s:%d \n", __func__, __LINE__);
+    printk("[S5K5BAFX]:%s:%d \n", __func__, __LINE__);
+    printk("[S5K5BAFX]:%s:%d \n", __func__, __LINE__);
     err = state->pdata->s_power(sd, 0);
     CHECK_ERR_MSG(err, "device power off failed");
     //
@@ -1450,20 +1414,16 @@ static int s5k5bafx_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct s5k5bafx_state *state = to_state(sd);
 
-    printk("HACK:%s:%d \n", __func__, __LINE__);
 	cam_trace("E\n");
 
-	state->initialized = 0;
+    state->initialized = 0;
 
-    //satish : TODO
-    //write clean up for 
-    //ctrl_handler & media_entity
+    //satish : Free ctrl, device and media entity
     v4l2_ctrl_handler_free(&state->ctrl_handler);
 	v4l2_device_unregister_subdev(&state->sd);
     media_entity_cleanup(&sd->entity);
 
-    //
-	v4l2_device_unregister_subdev(sd);
+    v4l2_device_unregister_subdev(sd);
 #ifdef S5K5BAFX_BURST_MODE
 	kfree(state->burst_buf);
 #endif
@@ -1491,14 +1451,12 @@ static struct i2c_driver v4l2_i2c_driver = {
 
 static int __init v4l2_i2c_drv_init(void)
 {
-    printk("HACK:%s:%d \n", __func__, __LINE__);
 	pr_debug("%s: init\n", S5K5BAFX_DRIVER_NAME);
 	return i2c_add_driver(&v4l2_i2c_driver);
 }
 
 static void __exit v4l2_i2c_drv_cleanup(void)
 {
-    printk("HACK:%s:%d \n", __func__, __LINE__);
 	pr_debug("%s: clean\n", S5K5BAFX_DRIVER_NAME);
 	i2c_del_driver(&v4l2_i2c_driver);
 }

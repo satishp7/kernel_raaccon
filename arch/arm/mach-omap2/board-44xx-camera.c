@@ -176,7 +176,7 @@ void __init omap4_camera_input_init(void)
 static int board_44xx_fc_power(struct v4l2_subdev *subdev, int on)
 {
 	int ret;
-	printk("HACK:%s() power: %s\n", __func__, ((on == 1)?"ON":"OFF"));
+	printk("[S5K5BAF]:%s() power: %s\n", __func__, ((on == 1)?"ON":"OFF"));
 
 	if (on) {
 		gpio_set_value(FC_GPIO_CAM_PWRDN, 1);
@@ -239,7 +239,7 @@ static struct s5k5bafx_platform_data s5k5bafx_plat = {
     .is_mipi = 1,
     .init_streamoff = true,
     .streamoff_delay = S5K5BAFX_STREAMOFF_DELAY,
-    .dbg_level = CAMDBG_LEVEL_TRACE,
+    .dbg_level = CAMDBG_LEVEL_DEBUG,
     .s_power = board_44xx_fc_power,
 };
 #endif
@@ -512,7 +512,7 @@ static int board_44xx_camera_ov5640_init(void)
 			OMAP4_CAMERARX_CSI21_CTRLCLKEN_MASK,
 			OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_CAMERA_RX);
 
-    printk("HACK: %s() : %x\n", __func__, omap4_ctrl_pad_readl(OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_CAMERA_RX));
+    printk("[OV5640]: %s() : %x\n", __func__, omap4_ctrl_pad_readl(OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_CAMERA_RX));
 	/* Select GPIO 45 */
 	omap_mux_init_gpio(PANDA_GPIO_CAM_PWRDN, OMAP_PIN_OUTPUT);
 
@@ -542,7 +542,7 @@ static int board_44xx_camera_ov5640_init(void)
 #ifdef CONFIG_VIDEO_S5K5BAFX
 static int board_44xx_camera_s5k5bafx_init(void)
 {
-    printk("HACK:%s\n", __func__);
+    printk("[S5K5BAF]:%s\n", __func__);
 
     // satish
     /* TODO: 
@@ -567,7 +567,7 @@ static int board_44xx_camera_s5k5bafx_init(void)
             (0x3 << OMAP4_CAMERARX_CSI22_LANEENABLE_SHIFT) |
                 (OMAP4_CAMERARX_CSI21_CTRLCLKEN_MASK | OMAP4_CAMERARX_CSI22_CTRLCLKEN_MASK),
                 OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_CAMERA_RX);
-    printk("HACK: %s() : %x\n", __func__, omap4_ctrl_pad_readl(OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_CAMERA_RX));
+    printk("[S5K5BAF]: %s() : %x\n", __func__, omap4_ctrl_pad_readl(OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_CAMERA_RX));
 #if 0
     omap4_ctrl_pad_writel((omap4_ctrl_pad_readl(OMAP4_CTRL_MODULE_PAD_CORE_CONTROL_CAMERA_RX) &
                 ~(OMAP4_CAMERARX_CSI22_LANEENABLE_MASK |
@@ -608,14 +608,14 @@ static int board_44xx_camera_s5k5bafx_init(void)
 static int __init board_44xx_camera_init(void)
 {
     int res = 0;
-    printk("HACK: %s\n", __func__);
+    printk("%s\n", __func__);
     res = board_44xx_camera_ov5640_init();
     if (res < 0)
-        printk("HACK: camera ov5640 init failed:%d\n", res);
+        printk("camera ov5640 init failed:%d\n", res);
 #ifdef CONFIG_VIDEO_S5K5BAFX
     res = board_44xx_camera_s5k5bafx_init();
     if (res < 0)
-        printk("HACK: camera s5k5bafx init failed:%d\n", res);
+        printk("camera s5k5bafx init failed:%d\n", res);
 #endif // CONFIG_VIDEO_S5K5BAFX
 
     omap4_init_camera(&board_44xx_iss_platform_data, &omap4iss_data);
