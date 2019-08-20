@@ -426,7 +426,7 @@ static int __init omap4_i2c_init(void)
 	omap_register_i2c_bus(3, 400, NULL, 0);
 	omap_register_i2c_bus(4, 400, NULL, 0);
 
-	omap2_i2c_pullup(3, I2C_PULLUP_STD_860_OM_FAST_500_OM);
+	//omap2_i2c_pullup(3, I2C_PULLUP_STD_860_OM_FAST_500_OM);
 
 	/*
 	 * This will allow unused regulator to be shutdown. This flag
