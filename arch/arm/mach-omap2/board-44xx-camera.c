@@ -165,6 +165,10 @@ void __init omap4_camera_input_init(void)
 	camera_pmic_init();
 }
 
+// BC - Back Camera configurations
+#define PANDA_GPIO_CAM_PWRDN            39
+#define PANDA_GPIO_CAM_RESET            81
+
 // FC - Front Camera configurations
 #ifdef CONFIG_VIDEO_S5K5BAFX
 
@@ -179,12 +183,9 @@ static int board_44xx_fc_power(struct v4l2_subdev *subdev, int on)
 	printk("[S5K5BAF]:%s() power: %s\n", __func__, ((on == 1)?"ON":"OFF"));
 
 	if (on) {
-		gpio_set_value(FC_GPIO_CAM_PWRDN, 1);
-		msleep(5);
 
-        gpio_set_value(FC_GPIO_CAM_RESET, 0);
-		msleep(5);
-		gpio_set_value(FC_GPIO_CAM_RESET, 1);
+        //gpio_set_value(FC_GPIO_CAM_RESET, 0);
+		//msleep(5);
 
 		if (!regulator_is_enabled(ov5640_cam2pwr_reg)) {
 			printk("regulator enable\n");
@@ -195,19 +196,47 @@ static int board_44xx_fc_power(struct v4l2_subdev *subdev, int on)
 			}
 			msleep(50);
 		}
+
+        ret = clk_enable(board_44xx_cam_aux_clk1);
+		if (ret) {
+			printk("Error in clk_enable(1) in %s(%d)\n", __func__, on);
+			gpio_set_value(FC_GPIO_CAM_PWRDN, 0);
+			gpio_set_value(PANDA_GPIO_CAM_PWRDN, 1);
+			regulator_disable(ov5640_cam2pwr_reg);
+			return ret;
+		}
+
 		ret = clk_enable(board_44xx_cam_aux_clk2);
 		if (ret) {
 			printk("Error in clk_enable(2) in %s(%d)\n", __func__, on);
 			gpio_set_value(FC_GPIO_CAM_PWRDN, 0);
 			regulator_disable(ov5640_cam2pwr_reg);
-			//clk_disable(board_44xx_cam_aux_clk1);
+			clk_disable(board_44xx_cam_aux_clk1);
+			return ret;
+		}
+		ret = clk_enable(board_44xx_cam_aux_clk3);
+		if (ret) {
+			printk("Error in clk_enable(3) in %s(%d)\n", __func__, on);
+			gpio_set_value(PANDA_GPIO_CAM_PWRDN, 1);
+			gpio_set_value(FC_GPIO_CAM_PWRDN, 0);
+			regulator_disable(ov5640_cam2pwr_reg);
+			clk_disable(board_44xx_cam_aux_clk2);
+			clk_disable(board_44xx_cam_aux_clk1);
 			return ret;
 		}
 		mdelay(2);
+		gpio_set_value(FC_GPIO_CAM_PWRDN, 1);
+        mdelay(5);
+		gpio_set_value(FC_GPIO_CAM_RESET, 1);
+		mdelay(2);
 
 	} else {
-        clk_disable(board_44xx_cam_aux_clk2);
+		gpio_set_value(FC_GPIO_CAM_RESET, 0);
 		gpio_set_value(FC_GPIO_CAM_PWRDN, 0);
+		mdelay(2);
+		clk_disable(board_44xx_cam_aux_clk1);
+		clk_disable(board_44xx_cam_aux_clk2);
+		clk_disable(board_44xx_cam_aux_clk3);
 		if (regulator_is_enabled(ov5640_cam2pwr_reg)) {
 			printk("regulator disable\n");
 			ret = regulator_disable(ov5640_cam2pwr_reg);
@@ -216,7 +245,6 @@ static int board_44xx_fc_power(struct v4l2_subdev *subdev, int on)
 				return ret;
 			}
 		}
-		gpio_set_value(FC_GPIO_CAM_RESET, 0);
 	}
 	return 0;
 }
@@ -239,7 +267,7 @@ static struct s5k5bafx_platform_data s5k5bafx_plat = {
     .is_mipi = 1,
     .init_streamoff = true,
     .streamoff_delay = S5K5BAFX_STREAMOFF_DELAY,
-    .dbg_level = CAMDBG_LEVEL_DEBUG,
+    .dbg_level = CAMDBG_LEVEL_ERR,
     .s_power = board_44xx_fc_power,
 };
 #endif
@@ -258,8 +286,6 @@ static struct iss_subdev_i2c_board_info s5k5bafx_camera_subdevs[] = {
 
 #endif //CONFIG_VIDEO_S5K5BAFX
 
-#define PANDA_GPIO_CAM_PWRDN            39
-#define PANDA_GPIO_CAM_RESET            81
 
 static int board_44xx_ov_power(struct v4l2_subdev *subdev, int on)
 {

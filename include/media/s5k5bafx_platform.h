@@ -17,7 +17,7 @@
 #endif
 #define DEFAULT_CAPTURE_WIDTH		1600
 #define DEFAULT_CAPTURE_HEIGHT		1200
-#define S5K5BAFX_STREAMOFF_DELAY	150
+#define S5K5BAFX_STREAMOFF_DELAY	350
 
 /* Define debug level */
 #define CAMDBG_LEVEL_ERR		(1 << 0)
