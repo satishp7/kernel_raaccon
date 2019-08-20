@@ -505,6 +505,30 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 	}
 	return 0;
 }
+void omap_i2c_clock_pulse(struct omap_i2c_dev *dev)
+{
+    u32 reg;
+    int i;
+
+    /* Enable testmode */
+    reg = omap_i2c_read_reg(dev, OMAP_I2C_SYSTEST_REG);
+    reg |= OMAP_I2C_SYSTEST_ST_EN;
+    omap_i2c_write_reg(dev, OMAP_I2C_SYSTEST_REG, reg);
+
+    for (i = 0; i < 9; i++) {
+        reg |= OMAP_I2C_SYSTEST_SCL_O;
+        omap_i2c_write_reg(dev, OMAP_I2C_SYSTEST_REG, reg);
+        mdelay(100);
+        reg &= ~OMAP_I2C_SYSTEST_SCL_O;
+        omap_i2c_write_reg(dev, OMAP_I2C_SYSTEST_REG, reg);
+        mdelay(100);
+    }
+
+    /* Disable testmode */
+    reg &= ~OMAP_I2C_SYSTEST_ST_EN;
+    omap_i2c_write_reg(dev, OMAP_I2C_SYSTEST_REG, reg);
+}
+
 
 /*
  * Waiting on Bus Busy
@@ -516,8 +540,8 @@ static int omap_i2c_wait_for_bb(struct omap_i2c_dev *dev)
 	timeout = jiffies + OMAP_I2C_TIMEOUT;
 	while (omap_i2c_read_reg(dev, OMAP_I2C_STAT_REG) & OMAP_I2C_STAT_BB) {
 		if (time_after(jiffies, timeout)) {
-			dev_warn(dev->dev, "timeout waiting for bus ready\n");
-			return -ETIMEDOUT;
+            dev_warn(dev->dev, "timeout waiting for bus ready\n");
+            return -ETIMEDOUT;
 		}
 		msleep(1);
 	}
@@ -651,11 +675,11 @@ static int omap_i2c_xfer_msg(struct i2c_adapter *adap,
 	if (dev->cmd_err & OMAP_I2C_STAT_NACK) {
 		if (msg->flags & I2C_M_IGNORE_NAK)
 			return 0;
-		if (stop) {
+		//if (stop || is_smbus) {
 			w = omap_i2c_read_reg(dev, OMAP_I2C_CON_REG);
 			w |= OMAP_I2C_CON_STP;
 			omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, w);
-		}
+		//}
 		return -EREMOTEIO;
 	}
 	return -EIO;
@@ -1014,7 +1038,10 @@ complete:
 				~(OMAP_I2C_STAT_RRDY | OMAP_I2C_STAT_RDR |
 				OMAP_I2C_STAT_XRDY | OMAP_I2C_STAT_XDR));
 
-		if (stat & OMAP_I2C_STAT_NACK)
+        // HACK: SATISH
+        omap_i2c_ack_stat(dev, OMAP_I2C_STAT_NACK | OMAP_I2C_STAT_AL);
+
+		if (stat & OMAP_I2C_STAT_NACK )
 			err |= OMAP_I2C_STAT_NACK;
 
 		if (stat & OMAP_I2C_STAT_AL) {
