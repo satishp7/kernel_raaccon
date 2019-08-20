@@ -419,7 +419,7 @@ static int s5k5bafx_debug_sensor_status(struct v4l2_subdev *sd)
 		break;
 	}
 
-	return 0;
+	return val;
 }
 
 static int s5k5bafx_check_sensor_status(struct v4l2_subdev *sd)
@@ -662,7 +662,7 @@ static int s5k5bafx_set_frame_rate(struct v4l2_subdev *sd, u32 fps)
 	int err = -EIO;
 	int i = 0, fps_index = -1;
 
-	cam_info("set frame rate %d\n", fps);
+	cam_dbg("set frame rate %d\n", fps);
 
 	for (i = 0; i < ARRAY_SIZE(s5k5bafx_framerates); i++) {
 		if (fps == s5k5bafx_framerates[i].fps) {
@@ -692,7 +692,7 @@ static int s5k5bafx_set_exposure(struct v4l2_subdev *sd, s32 val)
 	struct s5k5bafx_state *state = to_state(sd);
 	int err = -EINVAL;
 
-	cam_info("set_exposure: val=%d\n", val);
+	cam_dbg("set_exposure: val=%d\n", val);
 
 #ifdef SUPPORT_FACTORY_TEST
 	if (state->check_dataline)
@@ -715,7 +715,7 @@ static int s5k5bafx_set_blur(struct v4l2_subdev *sd, s32 val)
 	struct s5k5bafx_state *state = to_state(sd);
 	int err = -EINVAL;
 
-	cam_info("set_blur: val=%d\n", val);
+	cam_dbg("set_blur: val=%d\n", val);
 
 #ifdef SUPPORT_FACTORY_TEST
 	if (state->check_dataline)
@@ -907,8 +907,8 @@ static int s5k5bafx_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	mf->field = V4L2_FIELD_NONE;
 	mf->width = state->preview_frmsizes.width;
 	mf->height = state->preview_frmsizes.height;
-    cam_info("[S5K5BAFX]: code:%d, colorspace:%d\n", mf->code, mf->colorspace);
-    cam_info("[S5K5BAFX]: width:%d, height:%d\n", mf->width, mf->height);
+    cam_dbg("[S5K5BAFX]: code:%d, colorspace:%d\n", mf->code, mf->colorspace);
+    cam_dbg("[S5K5BAFX]: width:%d, height:%d\n", mf->width, mf->height);
 
     return 0;
 }
@@ -927,8 +927,8 @@ static int s5k5bafx_init(struct v4l2_subdev *sd, u32 val)
 
 	cam_trace("E\n");
 
-    printk("[S5K5BAFX]: %s: %d capture widht:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
-    printk("[S5K5BAFX]: %s: %d preview widht:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
+    //printk("[S5K5BAFX]: %s: %d capture widht:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
+    //printk("[S5K5BAFX]: %s: %d preview widht:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
 	err = s5k5bafx_init_regs(sd);
 	CHECK_ERR_MSG(err, "failed to indentify sensor chip\n");
 
@@ -941,7 +941,7 @@ static int s5k5bafx_init(struct v4l2_subdev *sd, u32 val)
 	err = exynos_cpufreq_lock(DVFS_LOCK_ID_CAM, state->cpufreq_lock_level);
 	CHECK_ERR_MSG(err, "failed lock DVFS\n");
 #endif
-	/* set initial regster value */
+	/* set initial register value */
 	if (state->sensor_mode == SENSOR_CAMERA) {
 		cam_info("load camera common (vt %d)\n", *state->init_mode);
 		err = s5k5bafx_set_from_table(sd, "init",
@@ -959,8 +959,13 @@ static int s5k5bafx_init(struct v4l2_subdev *sd, u32 val)
 #endif
 	CHECK_ERR_MSG(err, "failed to initialize camera device\n");
 
-	if (state->pdata->init_streamoff)
-		s5k5bafx_control_stream(sd, STREAM_STOP);
+    // HACK: set exposure
+    // s5k5bafx_set_exposure
+    err = s5k5bafx_set_exposure(sd, 2);
+    CHECK_ERR_MSG(err, "failed set exposure level\n");
+
+	//if (state->pdata->init_streamoff)
+	//	s5k5bafx_control_stream(sd, STREAM_STOP);
 
 	state->initialized = 1;
 
@@ -1045,14 +1050,22 @@ static int s5k5bafx_s_power(struct v4l2_subdev *sd, int on)
     struct s5k5bafx_state *state = to_state(sd);
     //satish : if power is on then do device init
     int ret = -EINVAL;
+    int retrycnt = 0;
 
-	cam_trace("E\n");
+	cam_info("%s\n", __func__);
+retry_init:
     /* do device power operation */
     ret = state->pdata->s_power(sd, on);
     CHECK_ERR_MSG(ret, "device power operation fail");
 
     if (on) {
         ret = s5k5bafx_init(sd, on);
+        if (ret < 0 && retrycnt < 3) {
+            cam_err("\n device init fail, retrying..:%d (max retrycount will be 3)", retrycnt);
+            retrycnt++;
+            state->pdata->s_power(sd, 0);
+            goto retry_init;
+        }
         CHECK_ERR_MSG(ret, "device init failed");
 
         //satish: TODO
@@ -1078,11 +1091,12 @@ static int s5k5bafx_s_stream(struct v4l2_subdev *sd, int enable)
 	BUG_ON(!state->initialized);
 
     /* power up camera */
-    if (enable != STREAM_MODE_CAM_OFF)
+    if (enable != STREAM_MODE_CAM_OFF) {
         s5k5bafx_s_power(sd, 1);
+    }
 
     //cam_info("%s: %d capture width:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
-    cam_info("%s: %d preview width:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
+    //cam_info("%s: %d preview width:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
 
     switch (enable) {
 
@@ -1093,9 +1107,9 @@ static int s5k5bafx_s_stream(struct v4l2_subdev *sd, int enable)
 				err = s5k5bafx_check_dataline(sd, 0);
 			else
 #endif
-				if (state->pdata->is_mipi)
-					err = s5k5bafx_control_stream(sd,
-						STREAM_STOP);
+		//		if (state->pdata->is_mipi)
+		//			err = s5k5bafx_control_stream(sd,
+		//				STREAM_STOP);
 		}
         s5k5bafx_s_power(sd, 0);
 		break;
@@ -1249,6 +1263,7 @@ static int s5k5bafx_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	struct v4l2_mbus_framefmt *mf;
     struct s5k5bafx_state *state = to_state(sd);
 	cam_trace("E\n");
+    printk("HACK: %s: %d \n", __func__, __LINE__);
 
     mf = v4l2_subdev_get_try_format(fh, 0);
 	mf->code = V4L2_MBUS_FMT_UYVY8_1X16 ;//,state->req_fmt.pixelformat; //s5k5baf_formats[1].code;
@@ -1259,6 +1274,7 @@ static int s5k5bafx_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
     return 0;
 }
+
 static int s5k5bafx_registered(struct v4l2_subdev *sd)
 {
     struct s5k5bafx_state *state = to_state(sd);
@@ -1287,6 +1303,18 @@ static void s5k5bafx_unregistered(struct v4l2_subdev *sd)
 	cam_trace("E\n");
 	v4l2_device_unregister_subdev(&state->sd);
 }
+
+static int s5k5bafx_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
+{
+	/* Quantity of initial bad frames to skip. Revisit. */
+	*frames = 3;
+
+	return 0;
+}
+static struct v4l2_subdev_sensor_ops s5k5bafx_subdev_sensor_ops = {
+	.g_skip_frames	= s5k5bafx_g_skip_frames,
+};
+
 
 static const struct v4l2_subdev_internal_ops s5k5baf_cis_subdev_internal_ops = {
 	.open = s5k5bafx_open,
@@ -1325,6 +1353,7 @@ static const struct v4l2_subdev_ops s5k5bafx_ops = {
 	.core = &s5k5bafx_core_ops,
 	.video = &s5k5bafx_video_ops,
     .pad = &s5k5bafx_pad_ops,
+	.sensor	= &s5k5bafx_subdev_sensor_ops,
 };
 
 /*
