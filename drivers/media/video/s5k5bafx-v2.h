@@ -35,8 +35,8 @@
 //#define SUPPORT_FACTORY_TEST
 
 /** Debuging Feature **/
-#define CONFIG_CAM_DEBUG
-#define CONFIG_CAM_TRACE
+//#define CONFIG_CAM_DEBUG
+//#define CONFIG_CAM_TRACE
 /* #define CONFIG_CAM_TRACE *//* Enable it with CONFIG_CAM_DEBUG */
 /***********************************/
 
