@@ -973,7 +973,7 @@ static int s5k5bafx_init(struct v4l2_subdev *sd, u32 val)
 		err = s5k5bafx_set_frame_rate(sd, state->req_fps);
 		CHECK_ERR(err);
 	}
-    printk("[S5K5BAFX]: %s: %d capture widht:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
+    //printk("[S5K5BAFX]: %s: %d capture widht:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
     printk("[S5K5BAFX]: %s: %d preview widht:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
 
 	return 0;
@@ -1263,7 +1263,7 @@ static int s5k5bafx_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	struct v4l2_mbus_framefmt *mf;
     struct s5k5bafx_state *state = to_state(sd);
 	cam_trace("E\n");
-    printk("HACK: %s: %d \n", __func__, __LINE__);
+    printk("%s: %d \n", __func__, __LINE__);
 
     mf = v4l2_subdev_get_try_format(fh, 0);
 	mf->code = V4L2_MBUS_FMT_UYVY8_1X16 ;//,state->req_fmt.pixelformat; //s5k5baf_formats[1].code;
