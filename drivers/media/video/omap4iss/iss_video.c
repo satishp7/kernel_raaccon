@@ -183,23 +183,18 @@ iss_video_remote_subdev(struct iss_video *video, u32 *pad)
 {
 	struct media_pad *remote;
 
-printk("%s:%d\n", __func__, __LINE__);
 	remote = media_entity_remote_source(&video->pad);
 
-printk("%s:%d\n", __func__, __LINE__);
 	if (remote == NULL )
 		return NULL;
-printk("%s:%d\n", __func__, __LINE__);
-         
+
 	   if( media_entity_type(remote->entity) != MEDIA_ENT_T_V4L2_SUBDEV)
 		return NULL;
 
-printk("%s:%d\n", __func__, __LINE__);
 	if (pad)
 		*pad = remote->index;
 
-printk("%s:%d\n", __func__, __LINE__);
-	return media_entity_to_v4l2_subdev(remote->entity);
+    return media_entity_to_v4l2_subdev(remote->entity);
 }
 
 /* Return a pointer to the ISS video instance at the far end of the pipeline. */
@@ -240,12 +235,10 @@ __iss_video_get_format(struct iss_video *video, struct v4l2_format *format)
 	u32 pad;
 	int ret;
 
-printk("%s:%d\n", __func__, __LINE__);
 	subdev = iss_video_remote_subdev(video, &pad);
 	if (subdev == NULL)
 		return -EINVAL;
 
-printk("%s:%d\n", __func__, __LINE__);
 	mutex_lock(&video->mutex);
 
 	fmt.pad = pad;
@@ -254,7 +247,6 @@ printk("%s:%d\n", __func__, __LINE__);
 	if (ret == -ENOIOCTLCMD)
 		ret = -EINVAL;
 
-printk("%s:%d\n", __func__, __LINE__);
 	mutex_unlock(&video->mutex);
 
 	if (ret)
@@ -747,7 +739,6 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 	struct iss_video *far_end;
 	unsigned long flags;
 	int ret;
- printk("%s:%d\n", __func__, __LINE__);
 	if (type != video->type)
 		return -EINVAL;
 
@@ -770,11 +761,9 @@ iss_video_streamon(struct file *file, void *fh, enum v4l2_buf_type type)
 
 	if (video->iss->pdata->set_constraints)
 		video->iss->pdata->set_constraints(video->iss, true);
-printk("%s:%d\n", __func__, __LINE__);
 	ret = media_entity_pipeline_start(&video->video.entity, &pipe->pipe);
 	if (ret < 0)
 		goto err_media_entity_pipeline_start;
-printk("%s:%d\n", __func__, __LINE__);
 	/* Verify that the currently configured format matches the output of
 	 * the connected subdev.
 	 */
@@ -791,12 +780,11 @@ printk("%s:%d\n", __func__, __LINE__);
 	far_end = iss_video_far_end(video);
 
 	if (video->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		printk("%s:%d\n", __func__, __LINE__);
+		printk("video capture : %s:%d\n", __func__, __LINE__);
 		state = ISS_PIPELINE_STREAM_OUTPUT | ISS_PIPELINE_IDLE_OUTPUT;
 		pipe->input = far_end;
 		pipe->output = video;
 	} else {
-		printk("%s:%d\n", __func__, __LINE__);
 		if (far_end == NULL) {
 			ret = -EPIPE;
 			goto err_iss_video_check_format;
@@ -823,23 +811,19 @@ printk("%s:%d\n", __func__, __LINE__);
 	INIT_LIST_HEAD(&video->dmaqueue);
 	spin_lock_init(&video->qlock);
 	atomic_set(&pipe->frame_number, -1);
-printk("%s:%d\n", __func__, __LINE__);
 	ret = vb2_streamon(&vfh->queue, type);
 	if (ret < 0)
 		goto err_iss_video_check_format;
-printk("%s:%d\n", __func__, __LINE__);
 	/* In sensor-to-memory mode, the stream can be started synchronously
 	 * to the stream on command. In memory-to-memory mode, it will be
 	 * started when buffers are queued on both the input and output.
 	 */
 	if (pipe->input == NULL) {
 		unsigned long flags;
-		printk("%s:%d\n", __func__, __LINE__);
 		ret = omap4iss_pipeline_set_stream(pipe,
 					      ISS_PIPELINE_STREAM_CONTINUOUS);
 		if (ret < 0)
 			goto err_omap4iss_set_stream;
-		printk("%s:%d\n", __func__, __LINE__);
 		spin_lock_irqsave(&video->qlock, flags);
 		if (list_empty(&video->dmaqueue))
 			video->dmaqueue_flags |= ISS_VIDEO_DMAQUEUE_UNDERRUN;
@@ -847,7 +831,6 @@ printk("%s:%d\n", __func__, __LINE__);
 	}
 
 	if (ret < 0) {
-printk("%s:%d\n", __func__, __LINE__);
 err_omap4iss_set_stream:
 		vb2_streamoff(&vfh->queue, type);
 err_iss_video_check_format:
