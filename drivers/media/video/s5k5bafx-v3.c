@@ -961,8 +961,8 @@ static int s5k5bafx_init(struct v4l2_subdev *sd, u32 val)
 
     // HACK: set exposure
     // s5k5bafx_set_exposure
-    err = s5k5bafx_set_exposure(sd, 2);
-    CHECK_ERR_MSG(err, "failed set exposure level\n");
+    //err = s5k5bafx_set_exposure(sd, 2);
+    //CHECK_ERR_MSG(err, "failed set exposure level\n");
 
 	//if (state->pdata->init_streamoff)
 	//	s5k5bafx_control_stream(sd, STREAM_STOP);
