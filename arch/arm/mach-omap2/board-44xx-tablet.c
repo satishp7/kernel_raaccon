@@ -589,6 +589,11 @@ static void __init tablet_camera_mux_init(void)
 {
 	u32 r = 0;
 
+	omap_mux_init_signal("cam_shutter.gpio_81", OMAP_PIN_OUTPUT | OMAP_MUX_MODE3);
+	omap_mux_init_signal("gpmc_ad15.gpio_39", OMAP_PIN_OUTPUT | OMAP_MUX_MODE3);
+
+	omap_mux_init_signal("cam_strobe.gpio_82", OMAP_PIN_OUTPUT | OMAP_MUX_MODE3);
+	omap_mux_init_signal("gpmc_ad14.gpio_38", OMAP_PIN_OUTPUT | OMAP_MUX_MODE3);
 	/* Enable CSI22 pads for 4460 and 4470*/
 	if ((cpu_is_omap446x() || cpu_is_omap447x()) &&
 		(omap_get_board_version() >= OMAP4_TABLET_2_0)) {
@@ -634,7 +639,7 @@ static void __init omap_tablet_init(void)
 	omap4_create_board_props();
 	omap4_audio_conf();
 	omap4_i2c_init();
-	omap4_camera_input_init();
+    omap4_camera_input_init();
 	tablet_touch_init();
 	tablet_camera_mux_init();
 	omap_dmm_init();
@@ -667,6 +672,7 @@ static void __init omap_tablet_init(void)
 	omap_enable_smartreflex_on_init();
 	if (enable_suspend_off)
 		omap_pm_enable_off_mode();
+	omap_mux_init_signal("gpmc_ad15.gpio_39", OMAP_PIN_OUTPUT | OMAP_MUX_MODE3);
 
 }
 

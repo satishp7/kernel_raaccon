@@ -260,7 +260,6 @@ static struct regulator_init_data ov5640_vaux3 = {
 	.num_consumer_supplies = 1,
 	.consumer_supplies = ov5640_cam2_supply,
 };
-
 static struct regulator_init_data clk32kg = {
 	.constraints = {
 		.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
