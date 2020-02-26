@@ -528,9 +528,9 @@ static int s5k5bafx_init_regs(struct v4l2_subdev *sd)
 		return -ENODEV;
 
 	if (likely(read_value == S5K5BAFX_CHIP_ID))
-		printk("HACK: Sensor ChipID: 0x%04X\n", S5K5BAFX_CHIP_ID);
+		cam_info("Sensor ChipID: 0x%04X\n", S5K5BAFX_CHIP_ID);
 	else
-		printk("HACK:Sensor ChipID: 0x%04X, unknown ChipID\n", read_value);
+		cam_info("Sensor ChipID: 0x%04X, unknown ChipID\n", read_value);
 
 	err = s5k5bafx_read_reg(sd, 0xD000, 0x1008, &read_value);
 	if (likely((u8)read_value == S5K5BAFX_CHIP_REV))
@@ -1400,12 +1400,9 @@ static int s5k5bafx_probe(struct i2c_client *client,
     CHECK_ERR_MSG(err, "device power on failed");
 
     printk("[S5K5BAFX]:%s:%d \n", __func__, __LINE__);
-    printk("[S5K5BAFX]:%s:%d \n", __func__, __LINE__);
-    printk("[S5K5BAFX]:%s:%d \n", __func__, __LINE__);
-    err = s5k5bafx_init(sd, 1);
-    CHECK_ERR_MSG(err, "device init failed");
+    //err = s5k5bafx_init(sd, 1);
+    //CHECK_ERR_MSG(err, "device init failed");
 
-    printk("[S5K5BAFX]:%s:%d \n", __func__, __LINE__);
     printk("[S5K5BAFX]:%s:%d \n", __func__, __LINE__);
     err = state->pdata->s_power(sd, 0);
     CHECK_ERR_MSG(err, "device power off failed");
