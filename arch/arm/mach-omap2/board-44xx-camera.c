@@ -239,9 +239,6 @@ static int board_44xx_fc_power(struct v4l2_subdev *subdev, int on)
 
 	if (on) {
 
-        //gpio_set_value(FC_GPIO_CAM_RESET, 0);
-		//msleep(5);
-
 		if (!regulator_is_enabled(ov5640_cam2pwr_reg)) {
 			printk("regulator enable\n");
 			ret = regulator_enable(ov5640_cam2pwr_reg);
@@ -249,7 +246,7 @@ static int board_44xx_fc_power(struct v4l2_subdev *subdev, int on)
 				printk("Error in enabling sensor power regulator 'cam2pwr'\n");
 				return ret;
 			}
-			msleep(50);
+			msleep(20);
 		}
 
         ret = clk_enable(board_44xx_cam_aux_clk2);
