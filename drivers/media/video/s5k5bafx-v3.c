@@ -30,6 +30,7 @@
 #include <linux/cpufreq.h>
 #endif
 
+static int g_power_state = 0;
 static const struct s5k5bafx_fps s5k5bafx_framerates[] = {
 	{ I_FPS_0,	FRAME_RATE_AUTO },
 	{ I_FPS_7,	FRAME_RATE_7 },
@@ -973,7 +974,6 @@ static int s5k5bafx_init(struct v4l2_subdev *sd, u32 val)
 		err = s5k5bafx_set_frame_rate(sd, state->req_fps);
 		CHECK_ERR(err);
 	}
-    //printk("[S5K5BAFX]: %s: %d capture widht:%d, height:%d \n", __func__, __LINE__, state->capture_frmsizes.width, state->capture_frmsizes.height);
     printk("[S5K5BAFX]: %s: %d preview widht:%d, height:%d \n", __func__, __LINE__, state->preview_frmsizes.width, state->preview_frmsizes.height);
 
 	return 0;
@@ -1055,10 +1055,12 @@ static int s5k5bafx_s_power(struct v4l2_subdev *sd, int on)
 	cam_info("%s\n", __func__);
 retry_init:
     /* do device power operation */
-    ret = state->pdata->s_power(sd, on);
-    CHECK_ERR_MSG(ret, "device power operation fail");
+    if (g_power_state != on) {
+        ret = state->pdata->s_power(sd, on);
+        CHECK_ERR_MSG(ret, "device power operation fail");
+    }
 
-    if (on) {
+    if (g_power_state != on && on) {
         ret = s5k5bafx_init(sd, on);
         if (ret < 0 && retrycnt < 3) {
             cam_err("\n device init fail, retrying..:%d (max retrycount will be 3)", retrycnt);
@@ -1067,15 +1069,10 @@ retry_init:
             goto retry_init;
         }
         CHECK_ERR_MSG(ret, "device init failed");
-
-        //satish: TODO
-        //initialize the v4l2_ctrl_ops
-        // currently putting as part of core ops, if required will move it to
-        // ctrl op
     } else {
-        cam_info("turning device to off state \n");
+        cam_info("device state is same as before..do nothing:before:%d, now:%d \n", g_power_state, on);
     }
-    //
+    g_power_state = on;
     return ret;
 }
 
@@ -1425,7 +1422,7 @@ static int s5k5bafx_probe(struct i2c_client *client,
     //
 
 #ifdef S5K5BAFX_BURST_MODE
-	state->burst_buf = kmalloc(SZ_2K, GFP_KERNEL);
+	state->burst_buf =kzalloc(SZ_2K, GFP_KERNEL);
 	CHECK_ERR_COND_MSG(!state->burst_buf, -ENOMEM,
 			"fail to get memory(buf)\n");
 #endif

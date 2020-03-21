@@ -28,7 +28,7 @@
  * FEATURE DEFINITIONS
  ************************************/
 /* #define S5K5BAFX_USLEEP */
-// #define S5K5BAFX_BURST_MODE
+#define S5K5BAFX_BURST_MODE
 /* #define CONFIG_LOAD_FILE */
 /* #define SUPPORT_FACTORY_TEST */
 
